@@ -1,0 +1,21 @@
+{
+  "city": "Cincinnati, OH",
+  "sim_days": 60,
+  "n_calls": 10749,
+  "n_ambulances": 26,
+  "busy_fraction_q": 0.239,
+  "avg_response_min_static": 4.41,
+  "avg_response_min_dynamic": 3.71,
+  "median_response_min_static": 3.92,
+  "median_response_min_dynamic": 3.43,
+  "p90_response_min_static": 7.71,
+  "p90_response_min_dynamic": 5.97,
+  "pct_improvement": 15.9,
+  "pct_calls_improved": 23.8,
+  "wilcoxon_p_value": 1.1567599555852221e-120,
+  "statistically_significant": true,
+  "REAL_measured_response_min_median": 4.8,
+  "REAL_measured_response_min_p90": 7.78,
+  "REAL_measured_n": 9861,
+  "REAL_vs_SIM_note": "Real Cincinnati Fire Dept response times are for the ACTUAL fielded fleet/dispatch policy; simulated static/dynamic figures assume a hypothetical N_AMBULANCES-truck fleet at MEXCLP-chosen posts. This is a realism check (is the simulated distribution in a plausible range for a real mid-size city), NOT a real-vs-model causal comparison -- real fleet size/positions are unknown from this CAD export."
+}
