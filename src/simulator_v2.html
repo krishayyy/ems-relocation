@@ -50,7 +50,7 @@
         </div>
 
         <div class="card">
-          <div class="label">Average response, same fleet &amp; same calls</div>
+          <div class="label"><span class="icon-chip blue">🚑</span>Average response, same fleet &amp; same calls</div>
           <div class="vs" style="margin-top:9px">
             <div class="vs-row">
               <div class="vs-name s">Static</div>
@@ -66,28 +66,28 @@
         </div>
 
         <div class="card" style="background:linear-gradient(150deg,rgba(46,230,160,.1),rgba(46,230,160,.02));border-color:rgba(46,230,160,.26)">
-          <div class="label">Ambulance-minutes saved</div>
+          <div class="label"><span class="icon-chip mint">⏱</span>Ambulance-minutes saved</div>
           <div class="value num" id="kMinutes" style="color:var(--dynamic);font-size:29px">—</div>
           <div class="note" id="kHours" style="margin-top:3px"></div>
         </div>
 
         <div class="row">
-          <div class="card tight"><div class="label">Within 8-min standard</div><div class="value num" id="kWithin">—</div></div>
-          <div class="card tight"><div class="label">p90 response</div><div class="value num" id="kP90">—</div></div>
+          <div class="card tight"><div class="label"><span class="icon-chip blue">🎯</span>Within 8-min standard</div><div class="value num" id="kWithin">—</div></div>
+          <div class="card tight"><div class="label"><span class="icon-chip violet">📈</span>p90 response</div><div class="value num" id="kP90">—</div></div>
         </div>
         <div class="row">
-          <div class="card tight"><div class="label">Median response</div><div class="value num" id="kMedian">—</div></div>
-          <div class="card tight"><div class="label">Fleet modelled</div><div class="value num" id="kFleet" style="font-size:14px;margin-top:6px">—</div></div>
+          <div class="card tight"><div class="label"><span class="icon-chip violet">📊</span>Median response</div><div class="value num" id="kMedian">—</div></div>
+          <div class="card tight"><div class="label"><span class="icon-chip amber">🚒</span>Fleet modelled</div><div class="value num" id="kFleet" style="font-size:14px;margin-top:6px">—</div></div>
         </div>
 
         <div class="card tight">
-          <div class="label">Statistical significance</div>
+          <div class="label"><span class="icon-chip mint">✓</span>Statistical significance</div>
           <div class="value num" id="kSig" style="font-size:16px;color:var(--dynamic)">—</div>
           <div class="note" id="kSigNote" style="margin-top:3px"></div>
         </div>
 
         <div class="card tight">
-          <div class="label">Data window</div>
+          <div class="label"><span class="icon-chip amber">🗓</span>Data window</div>
           <div class="value small num" id="kWindow" style="font-size:12px">—</div>
           <div class="note" id="srcLine" style="margin-top:5px"></div>
         </div>
@@ -122,18 +122,18 @@
           <div class="mapwrap"><div id="mapDemand" style="position:absolute;inset:0"></div></div>
           <div class="sidebar">
             <div class="card">
-              <div class="label">The model</div>
+              <div class="label"><span class="icon-chip violet">🧠</span>The model</div>
               <div class="value small">MEXCLP (Maximum Expected Coverage, Daskin 1983) — the published method real EMS
                 System Status Management runs on. It ranks candidate posts by expected coverage while accounting for the
                 probability that a covering unit is already busy. The output is a <b>compliance table</b>: idle units
                 continuously re-fill it from the top.</div>
             </div>
             <div class="row">
-              <div class="card tight"><div class="label">Busy fraction q</div><div class="value num" id="statQ">—</div></div>
-              <div class="card tight"><div class="label">Coverage standard</div><div class="value num" id="statStandard">—</div></div>
+              <div class="card tight"><div class="label"><span class="icon-chip blue">⚙️</span>Busy fraction q</div><div class="value num" id="statQ">—</div></div>
+              <div class="card tight"><div class="label"><span class="icon-chip amber">🎯</span>Coverage standard</div><div class="value num" id="statStandard">—</div></div>
             </div>
             <div class="card tight" id="forecastCard">
-              <div class="label">Demand forecast (ML, held-out validated)</div>
+              <div class="label"><span class="icon-chip violet">🔮</span>Demand forecast (ML, held-out validated)</div>
               <div class="value small" id="forecastSummary">—</div>
               <div class="value" id="forecastNext" style="font-size:13px;margin-top:6px"></div>
             </div>
@@ -172,15 +172,15 @@
             <input type="range" id="timeline" min="0" max="100" value="0" />
             <div class="note" id="simDateLabel"></div>
             <div class="row">
-              <div class="card tight"><div class="label">Calls handled</div><div class="value num" id="statCalls">0</div></div>
-              <div class="card tight"><div class="label">Avg response so far</div><div class="value num" id="statAvgResp">—</div></div>
+              <div class="card tight"><div class="label"><span class="icon-chip mint">📞</span>Calls handled</div><div class="value num" id="statCalls">0</div></div>
+              <div class="card tight"><div class="label"><span class="icon-chip violet">📊</span>Avg response so far</div><div class="value num" id="statAvgResp">—</div></div>
             </div>
             <div class="row">
-              <div class="card tight"><div class="label">Units busy now</div><div class="value num" id="statBusy">—</div></div>
-              <div class="card tight"><div class="label">Delayed (no idle unit)</div><div class="value num" id="statDelayed">0</div></div>
+              <div class="card tight"><div class="label"><span class="icon-chip coral">🚨</span>Units busy now</div><div class="value num" id="statBusy">—</div></div>
+              <div class="card tight"><div class="label"><span class="icon-chip amber">⏳</span>Delayed (no idle unit)</div><div class="value num" id="statDelayed">0</div></div>
             </div>
             <div class="card tight">
-              <div class="label">Last event</div>
+              <div class="label"><span class="icon-chip blue">📻</span>Last event</div>
               <div class="value small" id="lastEvent">—</div>
             </div>
             <div class="note foot">Real call arrivals and locations, replayed from the busiest real day in the window.
