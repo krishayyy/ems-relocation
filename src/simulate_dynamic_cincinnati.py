@@ -94,6 +94,35 @@ def mexclp_compliance_table(zone_weights, q, zz_dur_sec, standard_sec, n_ranks):
     return chosen
 
 
+def mexclp_tables_by_hour(calls, zone_centers, zz_dur_sec, standard_sec, n_ranks, n_ambulances, sim_days):
+    """
+    EXTENSION beyond vanilla MEXCLP -- see simulate_dynamic.py's copy of this
+    function for full rationale. Standard MEXCLP (Daskin 1983) assumes one
+    city-wide busy fraction applied uniformly all day; this computes a
+    separate table per hour, each with its own empirically-derived busy
+    fraction and real demand distribution for that hour.
+    """
+    zone_ids_per_call = np.array([nearest_zone(r.latitude, r.longitude, zone_centers)
+                                   for r in calls.itertuples(index=False)])
+    hours = calls["datetime"].dt.hour.values
+
+    tables_by_hour, q_by_hour = {}, {}
+    for h in range(24):
+        mask = hours == h
+        n_calls_h = int(mask.sum())
+        if n_calls_h == 0:
+            continue
+        counts_h = np.bincount(zone_ids_per_call[mask], minlength=len(zone_centers))
+        weights_h = counts_h / counts_h.sum()
+        calls_per_day_this_hour = n_calls_h / sim_days
+        erlangs_h = (calls_per_day_this_hour * SERVICE_MEAN_MIN) / 60.0
+        q_h = min(0.95, erlangs_h / n_ambulances)
+        tables_by_hour[h] = mexclp_compliance_table(weights_h, q_h, zz_dur_sec, standard_sec, n_ranks)
+        q_by_hour[h] = q_h
+
+    return tables_by_hour, q_by_hour
+
+
 class Ambulance:
     __slots__ = ("id", "lat", "lng", "zone_id", "free_time", "home_zone_id")
 
@@ -126,6 +155,7 @@ def reposition_idle_dynamic(idle_ambulances, compliance_sites, zone_centers, zz_
 
 def run_simulation(calls, zone_centers, zz_dur_sec, zc_dur_sec, compliance_table, strategy,
                     home_zone_ids, rng, log_events: bool = False):
+    by_hour = isinstance(compliance_table, dict)
     ambulances = [
         Ambulance(i, home_zone_ids[i], zone_centers[home_zone_ids[i]][0], zone_centers[home_zone_ids[i]][1])
         for i in range(N_AMBULANCES)
@@ -143,7 +173,8 @@ def run_simulation(calls, zone_centers, zz_dur_sec, zc_dur_sec, compliance_table
                 a.zone_id = a.home_zone_id
                 a.lat, a.lng = zone_centers[a.zone_id][0], zone_centers[a.zone_id][1]
         elif idle:
-            reposition_idle_dynamic(idle, compliance_table, zone_centers, zz_dur_sec)
+            active_table = compliance_table[t.hour] if by_hour else compliance_table
+            reposition_idle_dynamic(idle, active_table, zone_centers, zz_dur_sec)
 
         if idle:
             # With N_AMBULANCES > K_ZONES, more idle units can arrive in one
@@ -219,6 +250,13 @@ def main():
     # at a busy station.
     home_zone_ids = [compliance_table[i % len(compliance_table)] for i in range(N_AMBULANCES)]
 
+    # EXTENSION: a separate compliance table per hour of day (see
+    # mexclp_tables_by_hour) -- static homes still use the single all-hours
+    # table above; the dynamic strategy uses the time-varying tables.
+    tables_by_hour, q_by_hour = mexclp_tables_by_hour(
+        calls, zone_centers, zz_dur_sec, standard_sec, K_ZONES, N_AMBULANCES, SIM_DAYS)
+    print(f"Per-hour busy fraction q: {[(h, round(v,3)) for h, v in sorted(q_by_hour.items())]}")
+
     rng_static = np.random.default_rng(RNG_SEED)
     rng_dynamic = np.random.default_rng(RNG_SEED)
 
@@ -227,7 +265,7 @@ def main():
         compliance_table, "static", home_zone_ids, rng_static, log_events=True)
     dynamic_resp, dynamic_wait, dynamic_events = run_simulation(
         calls, zone_centers, zz_dur_sec, zc_dur_sec,
-        compliance_table, "dynamic", home_zone_ids, rng_dynamic, log_events=True)
+        tables_by_hour, "dynamic", home_zone_ids, rng_dynamic, log_events=True)
 
     rng = np.random.default_rng(42)
     idx = rng.choice(len(static_resp), size=min(5000, len(static_resp)), replace=False)
@@ -247,6 +285,13 @@ def main():
         "service_time_assumption_min": SERVICE_MEAN_MIN,
         "routing_source": "OSRM public demo server, real driving durations (no flat-mph assumption)",
         "compliance_table": [int(z) for z in compliance_table],
+        "time_varying_extension": {
+            "description": "Dynamic strategy uses a separate MEXCLP compliance table per hour of day, "
+                            "each with its own empirically-derived busy fraction, instead of one "
+                            "city-wide q applied uniformly all day (the vanilla Daskin 1983 assumption).",
+            "busy_fraction_by_hour": {int(h): round(float(v), 3) for h, v in q_by_hour.items()},
+            "compliance_table_by_hour": {int(h): [int(z) for z in t] for h, t in tables_by_hour.items()},
+        },
         "home_bases": [{"lat": float(zone_centers[z][0]), "lng": float(zone_centers[z][1]), "zone_id": int(z)}
                         for z in home_zone_ids],
         "all_zone_centers": [{"lat": float(z[0]), "lng": float(z[1]), "weight": float(w)}
@@ -286,6 +331,7 @@ def main():
         "home_bases": summary["home_bases"],
         "all_zone_centers": summary["all_zone_centers"],
         "compliance_table": summary["compliance_table"],
+        "time_varying_extension": summary["time_varying_extension"],
         "static_events": [static_events[i] for i in day_idx],
         "dynamic_events": [dynamic_events[i] for i in day_idx],
     }

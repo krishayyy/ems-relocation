@@ -92,7 +92,13 @@
           <div class="note" id="srcLine" style="margin-top:5px"></div>
         </div>
 
-        <div class="label" style="margin-top:4px">Where to stage the fleet</div>
+        <div class="card tight">
+          <div class="label"><span class="icon-chip amber">🕐</span>Where to stage <em id="hourLabel">right now</em></div>
+          <input type="range" id="hourSlider" min="0" max="23" value="12" style="margin-top:8px" />
+          <div class="note" id="hourNote" style="margin-top:4px">Drag to see how the recommended posts shift through the day — each hour has its own real busy-fraction and demand pattern, not one fixed all-day table.</div>
+        </div>
+
+        <div class="label" style="margin-top:4px" id="postListLabel">Where to stage the fleet (all-day average)</div>
         <div id="postList"></div>
       </div>
 
@@ -358,9 +364,9 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="cad_engine.js"></script>
-<script src="charts.js"></script>
-<script src="race.js"></script>
-<script src="app.js"></script>
+<script src="cad_engine.js?v=2"></script>
+<script src="charts.js?v=2"></script>
+<script src="race.js?v=2"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>

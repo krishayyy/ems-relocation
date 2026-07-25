@@ -159,11 +159,19 @@ def build_city(city_id: str, cfg: dict) -> dict:
                                        sd.RESPONSE_STANDARD_MIN * 60, len(zone_centers))
     home_zone_ids = [table[i % len(table)] for i in range(cfg["n_ambulances"])]
 
+    # EXTENSION beyond vanilla MEXCLP: a separate compliance table per hour of
+    # day, each with its own empirically-derived busy fraction -- see
+    # sd.mexclp_tables_by_hour(). Static homes keep the single all-hours
+    # table (fixed all day, by definition); dynamic uses the time-varying ones.
+    tables_by_hour, q_by_hour = sd.mexclp_tables_by_hour(
+        calls, zone_centers, zz_dur, sd.RESPONSE_STANDARD_MIN * 60,
+        len(zone_centers), cfg["n_ambulances"], sd.SIM_DAYS)
+
     static_resp, static_wait, static_events = sd.run_simulation(
         calls, zone_centers, zz_dur, zc_dur, table, "static", home_zone_ids,
         np.random.default_rng(RNG_SEED), log_events=True)
     dynamic_resp, dynamic_wait, dynamic_events = sd.run_simulation(
-        calls, zone_centers, zz_dur, zc_dur, table, "dynamic", home_zone_ids,
+        calls, zone_centers, zz_dur, zc_dur, tables_by_hour, "dynamic", home_zone_ids,
         np.random.default_rng(RNG_SEED), log_events=True)
 
     idx = np.random.default_rng(RNG_SEED).choice(
@@ -199,6 +207,12 @@ def build_city(city_id: str, cfg: dict) -> dict:
         "wilcoxon_p_value": float(p_value),
         "statistically_significant": bool(p_value < 0.05),
         "routing_source": "OSRM public demo server, real driving durations (no flat-mph assumption)",
+        "time_varying_extension": {
+            "description": "Dynamic strategy uses a separate MEXCLP compliance table per hour of day, "
+                            "each with its own empirically-derived busy fraction, instead of one "
+                            "city-wide q applied uniformly all day (the vanilla Daskin 1983 assumption).",
+            "busy_fraction_by_hour": {int(h): round(float(v), 3) for h, v in q_by_hour.items()},
+        },
     }
 
     if cfg["has_measured_response"]:
@@ -244,6 +258,20 @@ def build_city(city_id: str, cfg: dict) -> dict:
                   "zone_id": int(z), "rank": i + 1}, **(addresses.get(int(z)) or {}))
             for i, z in enumerate(home_zone_ids)
         ],
+        # Real per-hour recommended posts (see sd.mexclp_tables_by_hour): the
+        # top N ranked posts for THAT hour's own busy fraction and demand
+        # distribution, not the single all-day table. Powers the "watch
+        # staging move through the day" hour scrubber in the UI.
+        "hourly_posts": {
+            str(h): [
+                dict({"lat": float(zone_centers[z][0]), "lng": float(zone_centers[z][1]),
+                      "zone_id": int(z), "rank": i + 1}, **(addresses.get(int(z)) or {}))
+                for i, z in enumerate([tables_by_hour[h][i % len(tables_by_hour[h])]
+                                        for i in range(cfg["n_ambulances"])])
+            ]
+            for h in sorted(tables_by_hour.keys())
+        },
+        "busy_fraction_by_hour": {int(h): round(float(v), 3) for h, v in q_by_hour.items()},
         "hist": {
             "bin_width_min": 1,
             "max_min": HIST_MAX_MIN,

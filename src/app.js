@@ -101,26 +101,38 @@
 
     drawDemand(m.layer, b.zones, 7200, 0.22);
 
-    var seenZone = {};
-    var list = $('postList');
-    list.innerHTML = '';
-    b.home_bases.forEach(function (p, i) {
-      var dup = seenZone[p.zone_id];
-      seenZone[p.zone_id] = true;
-      var label = p.street || ('Post at zone ' + p.zone_id);
-      var marker = L.marker([p.lat, p.lng], { icon: postMarker(i + 1) }).addTo(m.layer);
-      marker.on('click', function () { selectPost(i, true); });
+    if (!state.postLayer) state.postLayer = L.layerGroup();
+    state.postLayer.addTo(m.map);
 
-      var card = document.createElement('div');
-      card.className = 'post-card';
-      card.dataset.rank = i;
-      card.innerHTML = '<div class="rank-badge num">' + (i + 1) + '</div><div class="post-info">' +
-        '<div class="street">' + label + '</div><div class="hood">' +
-        (p.neighborhood ? p.neighborhood + ' · ' : '') +
-        (dup ? 'second unit at this post' : 'staged post') + '</div></div>';
-      card.addEventListener('click', function () { selectPost(i, true); });
-      list.appendChild(card);
-    });
+    var currentPosts = b.home_bases;
+
+    function renderPosts(posts, labelSuffix) {
+      currentPosts = posts;
+      state.postLayer.clearLayers();
+      $('postListLabel').textContent = 'Where to stage the fleet' + (labelSuffix ? ' (' + labelSuffix + ')' : ' (all-day average)');
+
+      var seenZone = {};
+      var list = $('postList');
+      list.innerHTML = '';
+      posts.forEach(function (p, i) {
+        var dup = seenZone[p.zone_id];
+        seenZone[p.zone_id] = true;
+        var label = p.street || ('Post at zone ' + p.zone_id);
+        var marker = L.marker([p.lat, p.lng], { icon: postMarker(i + 1) }).addTo(state.postLayer);
+        marker.on('click', function () { selectPost(i, true); });
+
+        var card = document.createElement('div');
+        card.className = 'post-card';
+        card.dataset.rank = i;
+        card.innerHTML = '<div class="rank-badge num">' + (i + 1) + '</div><div class="post-info">' +
+          '<div class="street">' + label + '</div><div class="hood">' +
+          (p.neighborhood ? p.neighborhood + ' · ' : '') +
+          (dup ? 'second unit at this post' : 'staged post') + '</div></div>';
+        card.addEventListener('click', function () { selectPost(i, true); });
+        list.appendChild(card);
+      });
+      selectPost(0, false);
+    }
 
     function selectPost(rank, userInitiated) {
       selectedRank = rank;
@@ -132,7 +144,8 @@
         // auto-select would push the headline number out of view on load.
         if (userInitiated) card.scrollIntoView({ block: 'nearest' });
       }
-      var p = b.home_bases[rank];
+      var p = currentPosts[rank];
+      if (!p) return;
       // Only fly on a click: on first render the container has no size yet and
       // Leaflet's flyTo projects to NaN and throws, which used to abort the rest
       // of setCity (race dock included). It also keeps the opening shot city-wide.
@@ -144,13 +157,38 @@
         '<h3>' + (p.street || 'Staging post') + '</h3></div>' +
         '<div class="addr">' + (p.display_name || (p.lat.toFixed(5) + ', ' + p.lng.toFixed(5))) + '</div>' +
         '<div class="mini-row">' +
-        '<div class="mini"><div class="l">Compliance rank</div><div class="v num">#' + (rank + 1) + ' of ' + b.home_bases.length + '</div></div>' +
+        '<div class="mini"><div class="l">Compliance rank</div><div class="v num">#' + (rank + 1) + ' of ' + currentPosts.length + '</div></div>' +
         '<div class="mini"><div class="l">Zone demand</div><div class="v num">' + fmt(b.zones[p.zone_id].calls) + ' calls</div></div>' +
         '<div class="mini"><div class="l">City-wide gain</div><div class="v num" style="color:var(--dynamic)">' + s.pct_improvement + '%</div></div>' +
         '</div>';
     }
 
-    selectPost(0);
+    function fmtHour(h) {
+      h = +h;
+      var ampm = h < 12 ? 'AM' : 'PM';
+      var h12 = h % 12 === 0 ? 12 : h % 12;
+      return h12 + ' ' + ampm;
+    }
+
+    var slider = $('hourSlider');
+    if (b.hourly_posts) {
+      slider.style.display = '';
+      slider.oninput = function () {
+        var h = slider.value;
+        $('hourLabel').textContent = fmtHour(h);
+        var q = b.busy_fraction_by_hour ? b.busy_fraction_by_hour[+h] : null;
+        $('hourNote').textContent = 'Recommended posts for ' + fmtHour(h) +
+          (q != null ? ' — busy fraction at this hour: ' + q : '') +
+          '. Each hour uses its own real call volume and demand pattern, not one fixed all-day table.';
+        renderPosts(b.hourly_posts[h] || b.home_bases, fmtHour(h));
+      };
+      var startHour = new Date().getHours();
+      slider.value = startHour;
+      slider.oninput();
+    } else {
+      slider.parentElement.style.display = 'none';
+      renderPosts(b.home_bases);
+    }
   }
 
   function countUp(node, target, decimals) {
@@ -334,7 +372,7 @@
 
   function loadCity(id) {
     if (state.bundles[id]) { setCity(state.bundles[id]); return Promise.resolve(); }
-    return fetch('../data/bundles/' + id + '.json')
+    return fetch('../data/bundles/' + id + '.json', { cache: 'no-store' })
       .then(function (r) { if (!r.ok) throw new Error('bundle ' + id + ' not found'); return r.json(); })
       .then(function (b) { state.bundles[id] = b; setCity(b); })
       .catch(function (e) { console.error(e); alert('Could not load ' + id + ': ' + e.message); });
@@ -523,7 +561,7 @@
     $('fileInput').addEventListener('change', function (e) { readFile(e.target.files[0]); });
     $('calibLine').textContent = CADEngine.CALIBRATION.note;
 
-    fetch('../data/demand_forecast.json').then(function (r) { return r.json(); })
+    fetch('../data/demand_forecast.json', { cache: 'no-store' }).then(function (r) { return r.json(); })
       .then(function (f) { global._forecast = f; if (state.current) renderHood(state.current); })
       .catch(function () {});
 

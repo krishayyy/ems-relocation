@@ -14,6 +14,18 @@ The output is a COMPLIANCE TABLE: a ranked list of posts (1st priority post,
 continuously re-fill the top of the list; lower-priority posts go uncovered
 first.
 
+EXTENSION beyond vanilla MEXCLP (mexclp_tables_by_hour): the published
+Daskin 1983 method assumes one busy fraction q for the whole system, applied
+uniformly across the entire day. That's a real, known limitation -- a system
+is far busier, relative to its fleet, at 5pm than at 4am, so the marginal
+value of an extra unit of coverage genuinely differs by hour. This
+implementation computes a SEPARATE compliance table per hour of day, each
+with its own empirically-derived busy fraction and its own real demand
+distribution (which zones are busy at 5pm is not the same set as at 4am).
+The dynamic strategy looks up the table for the call's actual hour; the
+static strategy is unaffected (a fixed-post strategy is, by definition,
+the same all day).
+
 REAL data: call arrival timestamps + locations (Seattle 911 dataset), and
 REAL driving durations/distances between the 20 candidate posts and every
 call location (precomputed via OSRM, see precompute_routing.py).
@@ -119,6 +131,48 @@ def mexclp_compliance_table(zone_weights, q, zz_dur_sec, standard_sec, n_ranks):
     return chosen
 
 
+def mexclp_tables_by_hour(calls: pd.DataFrame, zone_centers: np.ndarray, zz_dur_sec: np.ndarray,
+                           standard_sec: float, n_ranks: int, n_ambulances: int, sim_days: int):
+    """
+    EXTENSION beyond vanilla MEXCLP: standard MEXCLP (Daskin 1983) assumes one
+    city-wide busy fraction q, applied uniformly all day. In reality q is not
+    uniform -- an EMS system is far busier, relative to its fleet, at 5pm than
+    at 4am, so the "expected value of an extra unit of coverage" genuinely
+    differs by hour. This computes a SEPARATE compliance table per hour of
+    day, each with its own empirical busy fraction and its own demand-weight
+    distribution (which zones are busy at 5pm is not the same set as at 4am).
+
+    Real inputs only: per-hour call counts and per-hour zone shares come
+    directly from the real call timestamps/locations already loaded. The one
+    disclosed assumption (SERVICE_MEAN_MIN) is unchanged from the base model.
+    """
+    zone_ids_per_call = np.array([nearest_zone(r.latitude, r.longitude, zone_centers)
+                                   for r in calls.itertuples(index=False)])
+    hours = calls["datetime"].dt.hour.values
+
+    tables_by_hour = {}
+    q_by_hour = {}
+    for h in range(24):
+        mask = hours == h
+        n_calls_h = int(mask.sum())
+        if n_calls_h == 0:
+            continue
+        counts_h = np.bincount(zone_ids_per_call[mask], minlength=len(zone_centers))
+        weights_h = counts_h / counts_h.sum()
+
+        # Erlangs offered in this specific hour, averaged over the sim window:
+        # (calls in this hour across all sim_days) x service time, spread over
+        # (sim_days x 60 minutes of that hour), divided by fleet size.
+        calls_per_day_this_hour = n_calls_h / sim_days
+        erlangs_h = (calls_per_day_this_hour * SERVICE_MEAN_MIN) / 60.0
+        q_h = min(0.95, erlangs_h / n_ambulances)
+
+        tables_by_hour[h] = mexclp_compliance_table(weights_h, q_h, zz_dur_sec, standard_sec, n_ranks)
+        q_by_hour[h] = q_h
+
+    return tables_by_hour, q_by_hour
+
+
 class Ambulance:
     __slots__ = ("id", "lat", "lng", "zone_id", "free_time", "home_zone_id")
 
@@ -156,14 +210,21 @@ def reposition_idle_dynamic(idle_ambulances, compliance_sites, zone_centers, zz_
 
 
 def run_simulation(calls: pd.DataFrame, zone_centers: np.ndarray, zz_dur_sec: np.ndarray,
-                    zc_dur_sec: np.ndarray, compliance_table: list, strategy: str,
+                    zc_dur_sec: np.ndarray, compliance_table, strategy: str,
                     home_zone_ids: list, rng: np.random.Generator, log_events: bool = False):
     """
     strategy: "static"  -> each ambulance has one fixed assigned post; always
                            returns there once idle.
               "dynamic" -> idle units continuously re-fill the top of the
                            MEXCLP compliance table (see reposition_idle_dynamic).
+
+    compliance_table: either a single ranked list (used at all hours), or a
+    dict {hour_of_day: ranked list} for the time-varying extension -- the
+    dynamic strategy looks up the table for the CURRENT call's hour, so
+    repositioning priority reflects that hour's own busy fraction and demand
+    distribution instead of one flat city-wide average all day.
     """
+    by_hour = isinstance(compliance_table, dict)
     ambulances = [
         Ambulance(i, home_zone_ids[i], zone_centers[home_zone_ids[i]][0], zone_centers[home_zone_ids[i]][1])
         for i in range(N_AMBULANCES)
@@ -183,7 +244,8 @@ def run_simulation(calls: pd.DataFrame, zone_centers: np.ndarray, zz_dur_sec: np
                 a.zone_id = a.home_zone_id
                 a.lat, a.lng = zone_centers[a.zone_id][0], zone_centers[a.zone_id][1]
         elif idle:
-            reposition_idle_dynamic(idle, compliance_table, zone_centers, zz_dur_sec)
+            active_table = compliance_table[t.hour] if by_hour else compliance_table
+            reposition_idle_dynamic(idle, active_table, zone_centers, zz_dur_sec)
 
         if idle:
             # Idle units sit at a zone post. The nearest_zone fallback only fires
@@ -264,6 +326,15 @@ def main():
     compliance_table = mexclp_compliance_table(zone_weights, q, zz_dur_sec, standard_sec, N_AMBULANCES)
     print(f"MEXCLP compliance table (rank 1 first, real driving-time coverage): {compliance_table}")
 
+    # EXTENSION: a separate compliance table per hour of day, each with its
+    # own empirically-derived busy fraction and demand distribution -- see
+    # mexclp_tables_by_hour(). Static homes still use the single all-hours
+    # table above (a static strategy is fixed all day by definition); the
+    # dynamic strategy uses the time-varying tables.
+    tables_by_hour, q_by_hour = mexclp_tables_by_hour(
+        calls, zone_centers, zz_dur_sec, standard_sec, N_AMBULANCES, N_AMBULANCES, SIM_DAYS)
+    print(f"Per-hour busy fraction q: {[(h, round(v,3)) for h, v in sorted(q_by_hour.items())]}")
+
     home_zone_ids = compliance_table[:N_AMBULANCES]
 
     rng_static = np.random.default_rng(RNG_SEED)
@@ -273,7 +344,7 @@ def main():
         calls, zone_centers, zz_dur_sec, zc_dur_sec, compliance_table, "static",
         home_zone_ids, rng_static, log_events=True)
     dynamic_resp, dynamic_wait, dynamic_events = run_simulation(
-        calls, zone_centers, zz_dur_sec, zc_dur_sec, compliance_table, "dynamic",
+        calls, zone_centers, zz_dur_sec, zc_dur_sec, tables_by_hour, "dynamic",
         home_zone_ids, rng_dynamic, log_events=True)
 
     rng = np.random.default_rng(42)
@@ -297,6 +368,13 @@ def main():
         "service_time_assumption_min": SERVICE_MEAN_MIN,
         "routing_source": "OSRM public demo server, real driving durations (no flat-mph assumption)",
         "compliance_table": compliance_table,
+        "time_varying_extension": {
+            "description": "Dynamic strategy uses a separate MEXCLP compliance table per hour of day, "
+                            "each with its own empirically-derived busy fraction, instead of one "
+                            "city-wide q applied uniformly all day (the vanilla Daskin 1983 assumption).",
+            "busy_fraction_by_hour": {int(h): round(float(v), 3) for h, v in q_by_hour.items()},
+            "compliance_table_by_hour": {int(h): t for h, t in tables_by_hour.items()},
+        },
         "avg_response_min_static": round(float(static_resp.mean()), 2),
         "avg_response_min_dynamic": round(float(dynamic_resp.mean()), 2),
         "median_response_min_static": round(float(np.median(static_resp)), 2),
@@ -332,6 +410,7 @@ def main():
         "home_bases": summary["home_bases"],
         "all_zone_centers": summary["all_zone_centers"],
         "compliance_table": compliance_table,
+        "time_varying_extension": summary["time_varying_extension"],
         "static_events": [static_events[i] for i in day_idx],
         "dynamic_events": [dynamic_events[i] for i in day_idx],
     }
