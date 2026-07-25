@@ -119,6 +119,7 @@ ems-relocation/
     ├── forecast_demand.py              ⭐ real ML demand-forecasting layer (§5b) — Seattle call-volume forecast
     ├── verify_data_authenticity.py     ⭐ RUN IN FRONT OF JUDGES — re-queries live Seattle API + live OSRM, diffs against cached data, proves nothing's fabricated
     ├── visualize.ipynb                 ⚠️ exploratory notebook, Montgomery data + SYNTHETIC fleet/response times (§11.1) — visuals are useful, numbers are not real
+    ├── visualize_real_data.ipynb       ⭐ companion notebook, plots ONLY committed data/ artifacts — real feeds, real OSRM, real sim outputs (§11.3). Safe to cite.
     ├── index.html                      early single-view map + time-bucket slider (superseded by simulator.html)
     └── simulator.html                  ⭐ THE deliverable — two-view dashboard (Simple / Under the Hood), see §8
 ```
@@ -232,6 +233,45 @@ First run used a guessed fleet size (12 ambulances) and produced unrealistic res
 
 Full results: `data/cincinnati/dynamic_sim_cincinnati.json` (committed — small enough for git, unlike the raw CAD CSV).
 
+### 11.3 Second notebook — the real pipeline, visualized (`src/visualize_real_data.ipynb`)
+
+**What it is:** a companion to `visualize.ipynb` that plots **only** what's committed under `data/` — the real Seattle and Cincinnati call feeds, the real OSRM routing matrices, and the outputs of the MEXCLP simulation. No invented fleet, no `response_time()` generator. Same plot theme and helper as `visualize.ipynb`, so the two render as one document.
+
+**Why it exists:** `visualize.ipynb` has the charts everyone actually looks at, and its numbers are synthetic (§11.1). There was no visual record of the real pipeline at all — the headline result existed only as JSON and as the simulator UI. Now it exists as figures you can drop into a deck.
+
+**Citation status: safe.** It makes no new claims. Every number in it is read from a committed artifact and already appears in §5, §5b or §11.2. It re-plots; it doesn't re-derive.
+
+| § | What it shows |
+|---|---|
+| 2 | Loads Seattle (380,604 real EMS calls, Jul 2022 → Jul 2026) and Cincinnati (10,749, 60-day window), using the exact filters from `pipeline_seattle.py` / `precompute_routing_cincinnati.py` |
+| 3 | Hour×weekday heatmap, call-type ranking, two-city hourly demand profile, hex density maps |
+| 4 | OSRM post-to-post duration matrices; **coverage curve** — % of real calls within *t* driving minutes of the nearest candidate post |
+| 5 | MEXCLP compliance ranking vs raw zone demand; the 16 chosen posts on the Seattle map, labeled by rank |
+| 6 | Static vs dynamic, 60 real days, both cities (§5 and §11.2 numbers as bar charts) |
+| 7 | The single-day trace (2026-06-18): ECDF, per-call delta, paired scatter, **wait-vs-travel decomposition** |
+| 8 | Cincinnati simulated vs actually measured response times (§11.2 realism check) |
+| 9 | Demand forecast: feature importances, MAE vs naive baseline, next 24 h (§5b) |
+| 10 | The static per-bucket schedule dead end (§2.3), kept in the record — 18 buckets, ~0 gain, exhaustive search |
+
+**Three things the plots made visible that weren't obvious from the JSON — worth having in the pitch:**
+
+1. **The gain is queueing, not driving.** On the traced day, static splits into 14.0 min waiting for a free unit + 10.6 min travel; dynamic is 12.6 + 10.0. Most of the saving comes out of *wait*. This is the direct answer to "aren't you just parking trucks slightly closer?" — no, we're keeping a unit *available* near the next gap.
+2. **Coverage is ~99% within 8 min on travel alone** (both cities, §4 curve), yet Seattle's simulated static median is 9.51 min. That entire gap is unit availability — which is exactly the term MEXCLP's busy fraction `q` models and a plain distance-minimizing (k-means) placement ignores. Good one-line justification for why we used MEXCLP instead of "put posts where the calls are."
+3. **The dynamic policy helps typical calls more than worst-case calls in Seattle** — median improves 28%, p90 only 12%. Cincinnati is the reverse (p90 improves 23%). Seattle's 16-unit fleet is near-saturated at peak, so the tail is fleet-size-bound, not policy-bound. Don't let a judge catch this before you say it; it also makes the §7.8 "17.5% is optimistic" caveat easier to defend.
+
+**Trap to avoid:** the traced day (2026-06-18) carries **120% of an average day's volume** and its medians (static 22.38 min, dynamic 19.87) are far worse than the 60-day medians (9.51 / 6.83). The animated "Under the Hood" view runs on this same day. Never quote day-level numbers as the headline — quote §5.
+
+**Number reconciliation, because two versions of Cincinnati's real times are in this doc:** 4.88 min median / 8.12 min p90 is the *full history* (n = 501,947, §11 item 2); 4.80 / 7.78 is the *60-day window* that matches the simulation (n = 9,861, §11.2 table). The notebook plots the 60-day pair. Say which one you're quoting.
+
+**Running it:**
+- Needs nothing beyond `requirements.txt` (matplotlib, numpy, pandas — it doesn't use scikit-learn) plus `jupyter`. Executes end to end in ~40 s.
+- Reads only committed files. `data/seattle/seattle_911_raw.csv` (65 MB) **is** in git, so it works on a fresh clone. It does **not** need the gitignored Cincinnati raw CAD export or `911.csv` — Cincinnati comes from the committed `calls_60d.csv`.
+- Writes nothing. Read-only with respect to `data/`.
+- The kernel is recorded as `every-second-counts` (the venv it was built in). Point it at your own kernel if that name doesn't exist for you — nothing else is machine-specific, paths resolve upward to the repo root.
+- Committed with outputs (~1.5 MB), same as `visualize.ipynb`, so the figures are readable on GitHub without running anything.
+
+**Unrelated gotcha spotted while doing this:** `.gitignore` has a `HANDOFF.md` entry on its last line. It's a no-op today because the file is already tracked, but if anyone ever `git rm --cached`s it, this file will silently stop syncing to the remote. Worth deleting that line.
+
 ### Where things stand, ranked by how defensible each claim is
 | Claim | Status | Use in pitch? |
 |---|---|---|
@@ -247,4 +287,4 @@ Full results: `data/cincinnati/dynamic_sim_cincinnati.json` (committed — small
 3. **If a judge wants to see it live:** `python3 src/verify_data_authenticity.py` — live-queries the real Seattle API and real OSRM server, diffs against what's cached in the repo, prints PASS/FAIL. Actually run it, don't just describe it.
 4. **The pitch framing that's actually true and still strong:** "Published method (MEXCLP, 1983), real call data, real road routing, 17.5% improvement on Seattle, statistically significant at p<10⁻¹⁶⁸ — cross-validated for realism on a second real city (Cincinnati), where our simulation landed within 0.07 minutes of the real measured p90 response time. The remaining gap to full field validation is a real AVL data-sharing agreement with a pilot county, which is a business-development step, not a modeling gap."
 5. Do NOT let a judge's "does this work in Seattle" question rattle you — answer honestly: Seattle already has tiered fire+ALS response and doesn't need this; the target customer is the thousands of small/mid counties running ambulance-only, static-post systems with no data science team, which is who Montgomery/Cincinnati-scale data represents.
-6. If a judge asks about `visualize.ipynb` or the mock CSVs in the tree: own it directly, don't get defensive. "That's an exploratory notebook a teammate built on the same Montgomery data — it's upfront that the fleet and response times in it are invented, since that public dataset has no real timestamps. It's why we went and found Cincinnati's real CAD data instead."
+6. If a judge asks about `visualize.ipynb` or the mock CSVs in the tree: own it directly, don't get defensive. "That's an exploratory notebook a teammate built on the same Montgomery data — it's upfront that the fleet and response times in it are invented, since that public dataset has no real timestamps. It's why we went and found Cincinnati's real CAD data instead." Then point at `visualize_real_data.ipynb` (§11.3), which is the same analysis run on nothing but real committed data — two notebooks, one clearly labeled synthetic, one clearly not. Know which is which before you're on stage.
