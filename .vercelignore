@@ -1,0 +1,39 @@
+# Raw source datasets -- only needed by the offline Python precompute
+# scripts (simulate_dynamic.py, precompute_routing.py, fetch_cincinnati.py),
+# never fetched by the deployed app at runtime. Keeping these out of the
+# Vercel deploy keeps it small and fast; they still live in the repo/git
+# history for anyone re-running the pipeline.
+data/seattle/seattle_911_raw.csv
+data/cincinnati/cincinnati_cad_raw.csv
+
+# Precomputed OSRM routing matrices at the data/ root are Seattle
+# build-time artifacts (superseded by data/bundles/seattle.json, which IS
+# what the deployed app fetches). Not needed at runtime.
+data/osrm_zone_call_duration_sec.npy
+data/osrm_zone_call_distance_m.npy
+data/osrm_zone_zone_duration_sec.npy
+data/osrm_zone_zone_distance_m.npy
+data/relocation_model.json
+data/relocation_model_seattle.json
+
+# Synthetic/mock data -- explicitly flagged in HANDOFF.md as invented,
+# not-for-citation notebook output. Keep it out of the live deploy so it
+# can never be mistaken for real data.
+data/mock_dispatches.csv
+data/mock_fleet.csv
+data/mock_fleet_optimized.csv
+
+# Dev-only / not part of the web app
+src/visualize.ipynb
+src/.ipynb_checkpoints/
+src/__pycache__/
+.claude/
+.claude-flow/
+.git/
+
+# This is a static site with no Python runtime -- requirements.txt is only
+# for anyone running the offline precompute scripts locally. Its presence
+# at the repo root makes Vercel's zero-config auto-detection assume this is
+# a Python app and look for app.py/server.py/etc, which fails the build.
+# Excluding it from the deploy avoids that misdetection entirely.
+requirements.txt
