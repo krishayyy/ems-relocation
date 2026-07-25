@@ -125,13 +125,14 @@ def reposition_idle_dynamic(idle_ambulances, compliance_sites, zone_centers, zz_
 
 
 def run_simulation(calls, zone_centers, zz_dur_sec, zc_dur_sec, compliance_table, strategy,
-                    home_zone_ids, rng):
+                    home_zone_ids, rng, log_events: bool = False):
     ambulances = [
         Ambulance(i, home_zone_ids[i], zone_centers[home_zone_ids[i]][0], zone_centers[home_zone_ids[i]][1])
         for i in range(N_AMBULANCES)
     ]
     response_minutes = np.empty(len(calls))
     wait_minutes = np.empty(len(calls))
+    events = [] if log_events else None
 
     for i, row in enumerate(calls.itertuples(index=False)):
         t = row.datetime
@@ -167,13 +168,28 @@ def run_simulation(calls, zone_centers, zz_dur_sec, zc_dur_sec, compliance_table
         response_minutes[i] = wait_min + travel_min
         wait_minutes[i] = wait_min
 
+        from_lat, from_lng = chosen.lat, chosen.lng
+
         service_min = max(5.0, rng.lognormal(mean=np.log(SERVICE_MEAN_MIN), sigma=0.35))
         finish_time = start_time + pd.Timedelta(minutes=travel_min + service_min)
         chosen.free_time = finish_time
         chosen.lat, chosen.lng = row.latitude, row.longitude
         chosen.zone_id = None
 
-    return response_minutes, wait_minutes
+        if log_events:
+            events.append({
+                "t": t.isoformat(),
+                "call_lat": float(row.latitude), "call_lng": float(row.longitude),
+                "ambulance_id": chosen.id,
+                "from_lat": float(from_lat), "from_lng": float(from_lng),
+                "to_lat": float(row.latitude), "to_lng": float(row.longitude),
+                "wait_min": round(float(wait_min), 2),
+                "travel_min": round(float(travel_min), 2),
+                "response_min": round(float(wait_min + travel_min), 2),
+                "n_idle_at_arrival": len(idle),
+            })
+
+    return response_minutes, wait_minutes, events
 
 
 def main():
@@ -206,10 +222,12 @@ def main():
     rng_static = np.random.default_rng(RNG_SEED)
     rng_dynamic = np.random.default_rng(RNG_SEED)
 
-    static_resp, static_wait = run_simulation(calls, zone_centers, zz_dur_sec, zc_dur_sec,
-                                               compliance_table, "static", home_zone_ids, rng_static)
-    dynamic_resp, dynamic_wait = run_simulation(calls, zone_centers, zz_dur_sec, zc_dur_sec,
-                                                 compliance_table, "dynamic", home_zone_ids, rng_dynamic)
+    static_resp, static_wait, static_events = run_simulation(
+        calls, zone_centers, zz_dur_sec, zc_dur_sec,
+        compliance_table, "static", home_zone_ids, rng_static, log_events=True)
+    dynamic_resp, dynamic_wait, dynamic_events = run_simulation(
+        calls, zone_centers, zz_dur_sec, zc_dur_sec,
+        compliance_table, "dynamic", home_zone_ids, rng_dynamic, log_events=True)
 
     rng = np.random.default_rng(42)
     idx = rng.choice(len(static_resp), size=min(5000, len(static_resp)), replace=False)
@@ -223,7 +241,16 @@ def main():
         "sim_days": SIM_DAYS,
         "n_calls": len(calls),
         "n_ambulances": N_AMBULANCES,
+        "k_zones": K_ZONES,
         "busy_fraction_q": round(float(q), 3),
+        "response_standard_min": RESPONSE_STANDARD_MIN,
+        "service_time_assumption_min": SERVICE_MEAN_MIN,
+        "routing_source": "OSRM public demo server, real driving durations (no flat-mph assumption)",
+        "compliance_table": [int(z) for z in compliance_table],
+        "home_bases": [{"lat": float(zone_centers[z][0]), "lng": float(zone_centers[z][1]), "zone_id": int(z)}
+                        for z in home_zone_ids],
+        "all_zone_centers": [{"lat": float(z[0]), "lng": float(z[1]), "weight": float(w)}
+                              for z, w in zip(zone_centers, zone_weights)],
         "avg_response_min_static": round(float(static_resp.mean()), 2),
         "avg_response_min_dynamic": round(float(dynamic_resp.mean()), 2),
         "median_response_min_static": round(float(np.median(static_resp)), 2),
@@ -242,6 +269,29 @@ def main():
 
     with open(OUT_DIR / "dynamic_sim_cincinnati.json", "w") as f:
         json.dump(summary, f, indent=2)
+
+    # Animation trace for the busiest single real day (same as Seattle, so the
+    # simulator UI can replay either city with identical code).
+    calls_day = calls.copy()
+    calls_day["day"] = calls_day["datetime"].dt.date
+    busiest_day = calls_day.groupby("day").size().idxmax()
+    day_mask = (calls_day["day"] == busiest_day).values
+    day_idx = np.where(day_mask)[0]
+    print(f"\nBusiest day for animation trace: {busiest_day} ({len(day_idx)} calls)")
+
+    trace = {
+        "date": str(busiest_day),
+        "n_calls": int(len(day_idx)),
+        "n_ambulances": N_AMBULANCES,
+        "home_bases": summary["home_bases"],
+        "all_zone_centers": summary["all_zone_centers"],
+        "compliance_table": summary["compliance_table"],
+        "static_events": [static_events[i] for i in day_idx],
+        "dynamic_events": [dynamic_events[i] for i in day_idx],
+    }
+    with open(OUT_DIR / "sim_trace_cincinnati.json", "w") as f:
+        json.dump(trace, f, indent=2)
+    print(f"Wrote {OUT_DIR / 'sim_trace_cincinnati.json'}")
 
     print("\n=== MEXCLP + REAL ROAD ROUTING SIMULATION (Cincinnati, real calls) ===")
     print(f"Static  avg: {static_resp.mean():.2f} min (median {np.median(static_resp):.2f}, p90 {np.percentile(static_resp,90):.2f})")

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>EMS Predictive Relocation — Seattle</title>
+<title>EMS Predictive Relocation</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
@@ -10,194 +10,405 @@
     --bg:#0a0b0e; --panel:#131519; --panel2:#191c22; --border:#262b33;
     --text:#eef0f2; --muted:#8a929e; --accent:#7c5cff; --accent2:#4f8cff;
     --good:#33c17a; --bad:#ff5c5c; --warn:#ffb84f;
+    --static:#ff8a5c; --dynamic:#33c17a;
   }
   * { box-sizing:border-box; }
   body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
     background:var(--bg); color:var(--text); height:100vh; overflow:hidden; }
   #app { display:flex; flex-direction:column; height:100vh; }
-  #topbar { display:flex; align-items:center; gap:16px; padding:10px 18px; border-bottom:1px solid var(--border); background:var(--panel); }
-  #topbar h1 { font-size:14px; margin:0; font-weight:600; }
-  #topbar .sub { font-size:11px; color:var(--muted); }
-  .tabs { display:flex; gap:4px; margin-left:auto; background:var(--panel2); border-radius:8px; padding:3px; }
-  .tab { padding:6px 14px; font-size:12px; border-radius:6px; cursor:pointer; color:var(--muted); }
+
+  /* ---------- TOPBAR ---------- */
+  #topbar { display:flex; align-items:center; gap:14px; padding:9px 16px; border-bottom:1px solid var(--border); background:var(--panel); flex-shrink:0; }
+  #topbar h1 { font-size:14px; margin:0; font-weight:600; white-space:nowrap; }
+  #topbar .sub { font-size:10.5px; color:var(--muted); }
+  .cityPills { display:flex; gap:3px; background:var(--panel2); border-radius:8px; padding:3px; }
+  .cityPill { padding:6px 12px; font-size:11.5px; border-radius:6px; cursor:pointer; color:var(--muted); white-space:nowrap; display:flex; align-items:center; gap:6px; }
+  .cityPill:hover { color:var(--text); }
+  .cityPill.active { background:var(--accent2); color:white; font-weight:600; }
+  .cityPill .imp { font-size:10px; opacity:.85; }
+  .tabs { display:flex; gap:3px; margin-left:auto; background:var(--panel2); border-radius:8px; padding:3px; }
+  .tab { padding:6px 13px; font-size:12px; border-radius:6px; cursor:pointer; color:var(--muted); white-space:nowrap; }
+  .tab:hover { color:var(--text); }
   .tab.active { background:var(--accent); color:white; }
-  #body { flex:1; display:flex; overflow:hidden; }
+
+  #main { flex:1; display:flex; flex-direction:column; overflow:hidden; min-height:0; }
+  #viewWrap { flex:1; display:flex; overflow:hidden; min-height:0; }
   .view { display:none; flex:1; overflow:hidden; }
   .view.active { display:flex; }
 
   /* ---------- SIMPLE VIEW ---------- */
-  #simpleList { width:360px; background:var(--panel); border-right:1px solid var(--border); display:flex; flex-direction:column; }
-  #simpleList .head { padding:16px 16px 10px; border-bottom:1px solid var(--border); }
+  #simpleList { width:340px; background:var(--panel); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; }
+  #simpleList .head { padding:14px 16px 10px; border-bottom:1px solid var(--border); }
   #simpleList .head h2 { font-size:15px; margin:0 0 4px; }
-  #simpleList .head p { font-size:12px; color:var(--muted); margin:0; }
+  #simpleList .head p { font-size:11.5px; color:var(--muted); margin:0; }
   #postList { flex:1; overflow-y:auto; }
-  .post-card { display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid var(--border); cursor:pointer; }
+  .post-card { display:flex; align-items:center; gap:12px; padding:13px 16px; border-bottom:1px solid var(--border); cursor:pointer; }
   .post-card:hover { background:var(--panel2); }
   .post-card.selected { background:rgba(124,92,255,0.12); border-left:3px solid var(--accent); }
-  .rank-badge { width:30px; height:30px; border-radius:50%; background:var(--accent); color:white; font-weight:700; font-size:13px;
+  .rank-badge { width:29px; height:29px; border-radius:50%; background:var(--accent); color:white; font-weight:700; font-size:12.5px;
     display:flex; align-items:center; justify-content:center; flex-shrink:0; }
   .post-info { flex:1; min-width:0; }
-  .post-info .street { font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .post-info .hood { font-size:11.5px; color:var(--muted); }
-  #map1, #map2 { flex:1; }
-  .detail-card { position:absolute; bottom:16px; left:16px; right:16px; max-width:420px; background:var(--panel2);
-    border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:0 8px 30px rgba(0,0,0,.5); z-index:1000; }
+  .post-info .street { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .post-info .hood { font-size:11px; color:var(--muted); }
+  #map1, #map2, #mapDemand { flex:1; min-height:0; }
+  .detail-card { position:absolute; bottom:14px; left:14px; right:14px; max-width:400px; background:var(--panel2);
+    border:1px solid var(--border); border-radius:12px; padding:14px; box-shadow:0 8px 30px rgba(0,0,0,.5); z-index:1000; }
   .detail-card .rank-line { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
-  .detail-card h3 { margin:0; font-size:16px; }
-  .detail-card .addr { font-size:12px; color:var(--muted); margin-bottom:10px; }
+  .detail-card h3 { margin:0; font-size:15px; }
+  .detail-card .addr { font-size:11.5px; color:var(--muted); margin-bottom:10px; }
   .stat-mini-row { display:flex; gap:10px; }
   .stat-mini { flex:1; background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:8px 10px; }
-  .stat-mini .l { font-size:9.5px; color:var(--muted); text-transform:uppercase; }
-  .stat-mini .v { font-size:15px; font-weight:700; }
+  .stat-mini .l { font-size:9px; color:var(--muted); text-transform:uppercase; }
+  .stat-mini .v { font-size:14.5px; font-weight:700; }
   .stat-mini .v.good { color:var(--good); }
 
-  /* ---------- SHARED CARD/CONTROLS (under the hood) ---------- */
-  .sidebar { width:340px; background:var(--panel); border-left:1px solid var(--border); padding:16px;
-    overflow-y:auto; display:flex; flex-direction:column; gap:12px; }
-  .card { background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:12px; }
-  .card .label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
-  .card .value { font-size:20px; font-weight:700; }
+  /* ---------- SHARED ---------- */
+  .sidebar { width:330px; background:var(--panel); border-left:1px solid var(--border); padding:14px;
+    overflow-y:auto; display:flex; flex-direction:column; gap:11px; flex-shrink:0; }
+  .card { background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:11px; }
+  .card .label { font-size:9.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+  .card .value { font-size:19px; font-weight:700; }
   .card .value.good { color:var(--good); }
-  .card .value.small { font-size:13px; font-weight:500; color:var(--text); }
-  .row { display:flex; gap:10px; }
+  .card .value.small { font-size:12.5px; font-weight:500; color:var(--text); line-height:1.5; }
+  .row { display:flex; gap:9px; }
   .row .card { flex:1; }
   table { width:100%; border-collapse:collapse; font-size:11px; }
   th, td { text-align:left; padding:5px 4px; border-bottom:1px solid var(--border); }
-  th { color:var(--muted); font-weight:500; font-size:10px; text-transform:uppercase; }
+  th { color:var(--muted); font-weight:500; font-size:9.5px; text-transform:uppercase; }
   .zone-chip { width:10px; height:10px; border-radius:3px; display:inline-block; margin-right:6px; vertical-align:middle; }
   .staffed { color:var(--good); font-weight:600; }
-  .controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .controls { display:flex; gap:7px; align-items:center; flex-wrap:wrap; }
   button.ctl { background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:6px;
     padding:7px 12px; font-size:12px; cursor:pointer; }
   button.ctl.primary { background:var(--accent); border-color:var(--accent); }
   button.ctl:hover { opacity:0.85; }
+  button.ctl:disabled { opacity:.4; cursor:not-allowed; }
   select.strategy { background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:7px 10px; font-size:12px; }
-  #timeline { width:100%; }
-  .legend { display:flex; flex-wrap:wrap; gap:10px; font-size:10px; color:var(--muted); }
+  input[type=range] { width:100%; }
+  .legend { display:flex; flex-wrap:wrap; gap:9px; font-size:10px; color:var(--muted); }
   .legend span { display:flex; align-items:center; gap:5px; }
-  .footer-note { font-size:10px; color:var(--muted); line-height:1.5; margin-top:auto; padding-top:10px; border-top:1px solid var(--border); }
+  .footer-note { font-size:9.5px; color:var(--muted); line-height:1.55; margin-top:auto; padding-top:10px; border-top:1px solid var(--border); }
   .amb-icon { background:white; border-radius:50%; display:flex; align-items:center; justify-content:center;
     font-size:13px; box-shadow:0 0 0 2px var(--accent2), 0 2px 6px rgba(0,0,0,0.5); width:22px; height:22px; }
-  .subtabs { display:flex; gap:4px; padding:10px 16px 0; }
+  .subtabs { display:flex; gap:3px; padding:9px 14px 0; flex-shrink:0; }
   .subtab { padding:6px 12px; font-size:11.5px; border-radius:6px 6px 0 0; cursor:pointer; color:var(--muted); background:var(--panel2); }
   .subtab.active { background:var(--panel); color:var(--text); font-weight:600; }
-  .subview { display:none; flex:1; overflow:hidden; }
+  .subview { display:none; flex:1; overflow:hidden; min-height:0; }
   .subview.active { display:flex; }
+
+  /* ---------- RACE STACK (bottom dock) ---------- */
+  #raceDock { flex-shrink:0; background:var(--panel); border-top:1px solid var(--border); transition:height .18s ease; overflow:hidden; }
+  #raceDock.collapsed { height:38px !important; }
+  #raceHead { display:flex; align-items:center; gap:12px; padding:9px 16px; cursor:pointer; user-select:none; }
+  #raceHead .title { font-size:11.5px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:var(--muted); }
+  #raceHead .live { font-size:10px; color:var(--good); display:flex; align-items:center; gap:5px; }
+  #raceHead .live .dot { width:6px; height:6px; border-radius:50%; background:var(--good); animation:pulse 1.4s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+  #raceHead .chev { margin-left:auto; color:var(--muted); font-size:11px; }
+  #raceBody { padding:0 16px 14px; display:flex; gap:16px; align-items:stretch; }
+
+  .lanes { flex:1; min-width:0; display:flex; flex-direction:column; gap:9px; justify-content:center; }
+  .lane { display:flex; align-items:center; gap:10px; }
+  .lane .who { width:112px; flex-shrink:0; font-size:11.5px; font-weight:600; display:flex; align-items:center; gap:6px; }
+  .lane .who .sw { width:9px; height:9px; border-radius:3px; flex-shrink:0; }
+  .lane .track { flex:1; height:26px; background:var(--panel2); border:1px solid var(--border); border-radius:13px; position:relative; overflow:hidden; }
+  .lane .fill { position:absolute; left:0; top:0; bottom:0; border-radius:13px; transition:width .12s linear; }
+  .lane .fill.s { background:linear-gradient(90deg,rgba(255,138,92,.35),rgba(255,138,92,.85)); }
+  .lane .fill.d { background:linear-gradient(90deg,rgba(51,193,122,.35),rgba(51,193,122,.85)); }
+  /* Value sits pinned to the right of the track, never inside the fill --
+     a short (fast) bar would otherwise clip its own label. */
+  .lane .n { position:absolute; right:11px; top:50%; transform:translateY(-50%); font-size:11.5px;
+    font-weight:800; white-space:nowrap; z-index:3; text-shadow:0 1px 4px rgba(0,0,0,.85); }
+  .lane .n.s { color:#ffb99c; }
+  .lane .n.d { color:#8ee5b6; }
+  .lane .amb { position:absolute; top:50%; transform:translate(-50%,-50%); font-size:15px; transition:left .12s linear; z-index:2; filter:drop-shadow(0 2px 3px rgba(0,0,0,.7)); }
+  .lane .goal { position:absolute; right:0; top:0; bottom:0; width:2px; background:var(--border); }
+
+  .raceStats { display:flex; gap:9px; flex-shrink:0; }
+  .rs { background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:9px 13px; min-width:104px; }
+  .rs .l { font-size:8.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+  .rs .v { font-size:20px; font-weight:800; line-height:1.25; }
+  .rs .v.good { color:var(--good); }
+  .rs .v.sm { font-size:14px; }
+  #raceChartWrap { width:270px; flex-shrink:0; background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:8px 10px 4px; }
+  #raceChartWrap .l { font-size:8.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin-bottom:2px; }
+  #raceChart { width:100%; height:62px; display:block; }
+  .winFlash { font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:5px; background:rgba(51,193,122,.16); color:var(--good); }
+
+  /* ---------- UPLOAD VIEW ---------- */
+  #vUpload { flex-direction:column; overflow-y:auto; padding:22px 26px; }
+  .uploadInner { max-width:980px; margin:0 auto; width:100%; }
+  .uploadInner h2 { font-size:19px; margin:0 0 6px; }
+  .uploadInner .lede { font-size:12.5px; color:var(--muted); line-height:1.65; margin:0 0 18px; max-width:720px; }
+  #dropZone { border:2px dashed var(--border); border-radius:14px; padding:34px 22px; text-align:center; cursor:pointer; transition:.15s; background:var(--panel); }
+  #dropZone:hover, #dropZone.over { border-color:var(--accent); background:rgba(124,92,255,.06); }
+  #dropZone .big { font-size:15px; font-weight:600; margin-bottom:5px; }
+  #dropZone .sm { font-size:11.5px; color:var(--muted); line-height:1.6; }
+  .steps { display:flex; gap:10px; margin:18px 0; flex-wrap:wrap; }
+  .step { flex:1; min-width:170px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px 13px; opacity:.4; transition:.2s; }
+  .step.on { opacity:1; border-color:var(--accent); }
+  .step.done { opacity:1; border-color:var(--good); }
+  .step .n { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+  .step .t { font-size:12.5px; font-weight:600; margin:3px 0 2px; }
+  .step .d { font-size:10.5px; color:var(--muted); line-height:1.5; }
+  .mapping { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:9px; margin:14px 0; }
+  .mapRow { background:var(--panel); border:1px solid var(--border); border-radius:9px; padding:10px 11px; }
+  .mapRow .l { font-size:9px; color:var(--muted); text-transform:uppercase; margin-bottom:5px; }
+  .mapRow select { width:100%; background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 8px; font-size:11.5px; }
+  .mapRow .ok { color:var(--good); font-size:10px; margin-top:4px; }
+  .mapRow .warn { color:var(--warn); font-size:10px; margin-top:4px; }
+  #uploadResults { display:none; margin-top:20px; }
+  .resGrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:16px; }
+  #uploadMap { height:340px; border-radius:12px; border:1px solid var(--border); margin-top:14px; }
+  .disclose { background:rgba(255,184,79,.07); border:1px solid rgba(255,184,79,.28); border-radius:9px; padding:11px 13px; font-size:11px; color:#e9d3a8; line-height:1.6; margin-top:14px; }
+  .disclose b { color:var(--warn); }
+  #uploadLog { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:10.5px; color:var(--muted);
+    background:var(--panel); border:1px solid var(--border); border-radius:9px; padding:11px; margin-top:14px;
+    max-height:160px; overflow-y:auto; white-space:pre-wrap; line-height:1.6; display:none; }
 </style>
 </head>
 <body>
 <div id="app">
   <div id="topbar">
     <div>
-      <h1>EMS Predictive Relocation — Seattle, WA</h1>
-      <div class="sub">Real Seattle Fire 911 data · MEXCLP compliance-table model · 60-day simulation</div>
+      <h1 id="cityTitle">EMS Predictive Relocation</h1>
+      <div class="sub" id="citySub">Loading…</div>
     </div>
+    <div class="cityPills" id="cityPills"></div>
     <div class="tabs">
       <div class="tab active" data-view="vSimple">Simple</div>
       <div class="tab" data-view="vHood">Under the Hood</div>
+      <div class="tab" data-view="vUpload">Use Your CAD Data</div>
     </div>
   </div>
 
-  <div id="body">
+  <div id="main">
+    <div id="viewWrap">
 
-    <!-- ============ SIMPLE VIEW ============ -->
-    <div class="view active" id="vSimple">
-      <div id="simpleList">
-        <div class="head">
-          <h2>Where to stage ambulances</h2>
-          <p>16 recommended posts, ranked by priority. Tap one to see it on the map.</p>
+      <!-- ============ SIMPLE ============ -->
+      <div class="view active" id="vSimple">
+        <div id="simpleList">
+          <div class="head">
+            <h2>Where to stage ambulances</h2>
+            <p id="simpleSub">—</p>
+          </div>
+          <div id="postList"></div>
         </div>
-        <div id="postList"></div>
+        <div id="map1" style="position:relative;"></div>
       </div>
-      <div id="map1" style="position:relative;"></div>
-    </div>
 
-    <!-- ============ UNDER THE HOOD ============ -->
-    <div class="view" id="vHood">
-      <div style="flex:1; display:flex; flex-direction:column;">
-        <div class="subtabs">
-          <div class="subtab active" data-sub="sDemand">Demand &amp; Compliance Table</div>
-          <div class="subtab" data-sub="sSim">Live Simulation</div>
-        </div>
+      <!-- ============ UNDER THE HOOD ============ -->
+      <div class="view" id="vHood">
+        <div style="flex:1; display:flex; flex-direction:column; min-height:0;">
+          <div class="subtabs">
+            <div class="subtab active" data-sub="sDemand">Demand &amp; Compliance Table</div>
+            <div class="subtab" data-sub="sSim">Live Simulation</div>
+          </div>
 
-        <div class="subview active" id="sDemand" style="flex-direction:row;">
-          <div id="mapDemand" style="flex:1;"></div>
-          <div class="sidebar">
-            <div class="card">
-              <div class="label">Model</div>
-              <div class="value small">MEXCLP (Maximum Expected Coverage) compliance table — the published method real EMS System Status Management uses, ranking candidate posts by expected coverage accounting for the probability a covering unit is already busy.</div>
+          <div class="subview active" id="sDemand" style="flex-direction:row;">
+            <div id="mapDemand"></div>
+            <div class="sidebar">
+              <div class="card">
+                <div class="label">Model</div>
+                <div class="value small">MEXCLP (Maximum Expected Coverage) compliance table — the published method (Daskin 1983) real EMS System Status Management uses, ranking candidate posts by expected coverage accounting for the probability a covering unit is already busy.</div>
+              </div>
+              <div class="row">
+                <div class="card"><div class="label">Busy fraction (q)</div><div class="value" id="statQ">-</div></div>
+                <div class="card"><div class="label">Coverage standard</div><div class="value" id="statStandard">-</div></div>
+              </div>
+              <div class="card" id="calibCard">
+                <div class="label">Real-world routing calibration</div>
+                <div class="value small" id="calibText">-</div>
+              </div>
+              <div class="card" id="realCheckCard" style="display:none;">
+                <div class="label">Realism check vs. real measured response times</div>
+                <div class="value small" id="realCheckText">-</div>
+              </div>
+              <div class="card">
+                <div class="label">Demand forecast (ML, real data, held-out validated)</div>
+                <div class="value small" id="forecastSummary">-</div>
+                <div class="value" id="forecastNextHour" style="margin-top:6px;">-</div>
+              </div>
+              <div id="zoneTableWrap" class="card" style="max-height:260px; overflow-y:auto;">
+                <div class="label">Zones (real call counts) + compliance rank</div>
+                <table id="zoneTable"><thead><tr><th></th><th>Zone</th><th>Calls</th><th>Rank</th></tr></thead><tbody></tbody></table>
+              </div>
+              <div class="legend">
+                <span><span class="zone-chip" style="background:#3a1c6e"></span>Low demand</span>
+                <span><span class="zone-chip" style="background:#7c5cff"></span>Medium</span>
+                <span><span class="zone-chip" style="background:#ff5c9e"></span>High demand</span>
+                <span><span class="zone-chip" style="background:#33c17a;border-radius:50%"></span>Compliance post</span>
+              </div>
+              <div class="footer-note">Zone size/color = share of real historical 911 EMS calls originating there. Compliance table built via Daskin's (1983) greedy MEXCLP algorithm — the standard published method, not an invented heuristic.</div>
             </div>
-            <div class="row">
-              <div class="card"><div class="label">Busy fraction (q)</div><div class="value" id="statQ">-</div></div>
-              <div class="card"><div class="label">Coverage standard</div><div class="value" id="statStandard">-</div></div>
+          </div>
+
+          <div class="subview" id="sSim" style="flex-direction:row;">
+            <div id="map2"></div>
+            <div class="sidebar">
+              <div class="card controls">
+                <select class="strategy" id="strategySelect">
+                  <option value="static">Static (fixed home base)</option>
+                  <option value="dynamic">Dynamic (compliance-table restaging)</option>
+                </select>
+                <button class="ctl primary" id="playBtn">▶ Play</button>
+                <button class="ctl" id="resetBtn">⟲ Reset</button>
+                <select class="strategy" id="speedSelect">
+                  <option value="400">1x</option>
+                  <option value="150">3x</option>
+                  <option value="50" selected>8x</option>
+                  <option value="15">20x</option>
+                </select>
+              </div>
+              <input type="range" id="timeline" min="0" max="100" value="0" />
+              <div class="sub" id="simDateLabel" style="font-size:11px;color:var(--muted);"></div>
+              <div class="row">
+                <div class="card"><div class="label">Calls handled</div><div class="value" id="statCalls">0</div></div>
+                <div class="card"><div class="label">Avg response (so far)</div><div class="value" id="statAvgResp">-</div></div>
+              </div>
+              <div class="row">
+                <div class="card"><div class="label">Units busy now</div><div class="value" id="statBusy">-</div></div>
+                <div class="card"><div class="label">Delayed (no idle unit)</div><div class="value" id="statDelayed">0</div></div>
+              </div>
+              <div class="card">
+                <div class="label">Last event</div>
+                <div class="value small" id="lastEvent">—</div>
+              </div>
+              <div class="legend">
+                <span><span class="zone-chip" style="background:white;border-radius:50%;box-shadow:0 0 0 2px #4f8cff"></span>Idle unit</span>
+                <span><span class="zone-chip" style="background:#ff5c5c;border-radius:50%"></span>911 call</span>
+              </div>
+              <div class="footer-note">Real call arrivals &amp; locations from the busiest real day in the window. One disclosed assumption: per-call service duration (~50min avg, not in the source data). The race dock below runs BOTH strategies over this same real call stream simultaneously.</div>
             </div>
-            <div class="card">
-              <div class="label">Demand forecast (ML, real data, held-out validated)</div>
-              <div class="value small" id="forecastSummary">-</div>
-              <div class="value" id="forecastNextHour" style="margin-top:6px;">-</div>
-            </div>
-            <div id="zoneTableWrap" class="card" style="max-height:300px; overflow-y:auto;">
-              <div class="label">Zones (real call counts) + compliance rank</div>
-              <table id="zoneTable"><thead><tr><th></th><th>Zone</th><th>Calls</th><th>Rank</th></tr></thead><tbody></tbody></table>
-            </div>
-            <div class="legend">
-              <span><span class="zone-chip" style="background:#3a1c6e"></span>Low demand</span>
-              <span><span class="zone-chip" style="background:#7c5cff"></span>Medium</span>
-              <span><span class="zone-chip" style="background:#ff5c9e"></span>High demand</span>
-              <span><span class="zone-chip" style="background:#33c17a;border-radius:50%"></span>Compliance-table post</span>
-            </div>
-            <div class="footer-note">Zone size/color = share of real historical 911 EMS calls originating there. Compliance table built via Daskin's (1983) greedy MEXCLP algorithm — the standard published method, not an invented heuristic.</div>
           </div>
         </div>
+      </div>
 
-        <div class="subview" id="sSim" style="flex-direction:row;">
-          <div id="map2" style="flex:1;"></div>
-          <div class="sidebar">
-            <div class="card controls">
-              <select class="strategy" id="strategySelect">
-                <option value="static">Static (fixed home base)</option>
-                <option value="dynamic">Dynamic (compliance-table restaging)</option>
-              </select>
-              <button class="ctl primary" id="playBtn">▶ Play</button>
-              <button class="ctl" id="resetBtn">⟲ Reset</button>
-              <select class="strategy" id="speedSelect">
-                <option value="400">1x</option>
-                <option value="150">3x</option>
-                <option value="50">8x</option>
-                <option value="15">20x</option>
-              </select>
-            </div>
-            <input type="range" id="timeline" min="0" max="100" value="0" />
-            <div class="sub" id="simDateLabel" style="font-size:11px;color:var(--muted);"></div>
+      <!-- ============ UPLOAD CAD ============ -->
+      <div class="view" id="vUpload">
+        <div class="uploadInner">
+          <h2>Run the model on your own CAD export</h2>
+          <p class="lede">
+            The model isn't hardcoded to Seattle or Cincinnati. Drop in any CAD/911 export with
+            call coordinates and timestamps, and the full pipeline runs right here in your browser:
+            demand zoning → MEXCLP compliance table → paired static-vs-dynamic queueing simulation →
+            recommended posts. Nothing is uploaded to a server; the file never leaves this machine.
+          </p>
 
-            <div class="row">
-              <div class="card"><div class="label">Calls handled</div><div class="value" id="statCalls">0</div></div>
-              <div class="card"><div class="label">Avg response (so far)</div><div class="value" id="statAvgResp">-</div></div>
+          <div id="dropZone">
+            <div class="big">Drop a CAD export (.csv) here — or click to choose</div>
+            <div class="sm">
+              Needs at minimum: a latitude column, a longitude column, and a call-timestamp column.<br>
+              Column names are auto-detected (lat/latitude/y, lng/lon/longitude/x, time/datetime/create_time…) and you can override them below.
             </div>
-            <div class="row">
-              <div class="card"><div class="label">Units busy now</div><div class="value" id="statBusy">0 / 16</div></div>
-              <div class="card"><div class="label">Delayed (no idle unit)</div><div class="value" id="statDelayed">0</div></div>
+            <input type="file" id="fileInput" accept=".csv,text/csv" style="display:none" />
+          </div>
+
+          <div class="steps">
+            <div class="step" id="st1"><div class="n">Step 1</div><div class="t">Parse &amp; detect schema</div><div class="d">Reads the CSV, auto-detects which columns hold coordinates and timestamps.</div></div>
+            <div class="step" id="st2"><div class="n">Step 2</div><div class="t">Build demand zones</div><div class="d">k-means over real call coordinates → candidate posts, weighted by actual call volume.</div></div>
+            <div class="step" id="st3"><div class="n">Step 3</div><div class="t">MEXCLP compliance table</div><div class="d">Daskin (1983) greedy ranking, using your data's own empirical busy fraction q.</div></div>
+            <div class="step" id="st4"><div class="n">Step 4</div><div class="t">Race static vs. dynamic</div><div class="d">Paired queueing simulation over your identical real call stream, both strategies.</div></div>
+          </div>
+
+          <div class="mapping" id="mappingWrap" style="display:none;">
+            <div class="mapRow"><div class="l">Latitude column</div><select id="colLat"></select><div id="colLatMsg"></div></div>
+            <div class="mapRow"><div class="l">Longitude column</div><select id="colLng"></select><div id="colLngMsg"></div></div>
+            <div class="mapRow"><div class="l">Timestamp column</div><select id="colTime"></select><div id="colTimeMsg"></div></div>
+            <div class="mapRow"><div class="l">Fleet size (ambulances)</div><select id="fleetSize"></select><div class="ok" id="fleetMsg">Auto-sized to your peak-hour demand</div></div>
+          </div>
+
+          <div class="controls" id="runWrap" style="display:none; margin-top:4px;">
+            <button class="ctl primary" id="runBtn">Run the model on this data</button>
+            <button class="ctl" id="clearBtn">Clear</button>
+          </div>
+
+          <div id="uploadLog"></div>
+
+          <div id="uploadResults">
+            <div class="resGrid">
+              <div class="card"><div class="label">Real calls used</div><div class="value" id="uCalls">-</div></div>
+              <div class="card"><div class="label">Static avg response</div><div class="value" id="uStatic" style="color:var(--static)">-</div></div>
+              <div class="card"><div class="label">Dynamic avg response</div><div class="value" id="uDynamic" style="color:var(--dynamic)">-</div></div>
+              <div class="card"><div class="label">Improvement</div><div class="value good" id="uImp">-</div></div>
             </div>
-            <div class="card">
-              <div class="label">Last event</div>
-              <div class="value small" id="lastEvent">—</div>
+            <div class="resGrid">
+              <div class="card"><div class="label">Median (static → dynamic)</div><div class="value small" id="uMedian">-</div></div>
+              <div class="card"><div class="label">P90 (static → dynamic)</div><div class="value small" id="uP90">-</div></div>
+              <div class="card"><div class="label">Calls arriving sooner</div><div class="value small" id="uWon">-</div></div>
+              <div class="card"><div class="label">Busy fraction q</div><div class="value small" id="uQ">-</div></div>
             </div>
-            <div class="legend">
-              <span><span class="zone-chip" style="background:white;border-radius:50%;box-shadow:0 0 0 2px #4f8cff"></span>Idle unit</span>
-              <span><span class="zone-chip" style="background:#ff5c5c;border-radius:50%"></span>911 call</span>
-            </div>
-            <div class="footer-note">Real call arrivals &amp; locations from the busiest real day in the window. One disclosed assumption: per-call service duration (~50min avg, not in the source data). Dynamic strategy continuously re-fills the top of the MEXCLP compliance table as units go idle.</div>
+            <div id="uploadMap"></div>
+            <div class="disclose" id="uploadDisclose"></div>
           </div>
         </div>
       </div>
+
     </div>
 
+    <!-- ============ RACE DOCK ============ -->
+    <div id="raceDock" style="height:190px;">
+      <div id="raceHead">
+        <div class="title">Head-to-head race · same real calls, both strategies</div>
+        <div class="live" id="raceLive" style="display:none;"><span class="dot"></span>running</div>
+        <span class="winFlash" id="winFlash" style="display:none;"></span>
+        <div class="chev" id="raceChev">▾ collapse</div>
+      </div>
+      <div id="raceBody">
+        <div class="lanes">
+          <div class="lane">
+            <div class="who"><span class="sw" style="background:var(--static)"></span>Static posting</div>
+            <div class="track"><div class="fill s" id="fillS" style="width:0%"></div><span class="amb" id="ambS" style="left:0%">🚑</span><span class="n s" id="numS"></span><div class="goal"></div></div>
+          </div>
+          <div class="lane">
+            <div class="who"><span class="sw" style="background:var(--dynamic)"></span>Dynamic (ours)</div>
+            <div class="track"><div class="fill d" id="fillD" style="width:0%"></div><span class="amb" id="ambD" style="left:0%">🚑</span><span class="n d" id="numD"></span><div class="goal"></div></div>
+          </div>
+          <div class="controls" style="margin-top:2px;">
+            <button class="ctl primary" id="raceBtn">▶ Race them</button>
+            <button class="ctl" id="raceReset">⟲ Reset</button>
+            <select class="strategy" id="raceSpeed">
+              <option value="120">1x</option>
+              <option value="45" selected>3x</option>
+              <option value="14">10x</option>
+              <option value="4">40x</option>
+            </select>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin:6px 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="raceCaption"></div>
+        <div class="raceStats">
+          <div class="rs"><div class="l">Calls raced</div><div class="v" id="rsCalls">0</div></div>
+          <div class="rs"><div class="l">Dynamic arrived sooner</div><div class="v good" id="rsWon">0</div></div>
+          <div class="rs"><div class="l">Minutes saved (total)</div><div class="v good" id="rsSaved">0</div></div>
+          <div class="rs"><div class="l">Avg response now (this day)</div><div class="v sm" id="rsAvg">— vs —</div></div>
+        </div>
+        <div id="raceChartWrap">
+          <div class="l">Cumulative average response (full 60-day run)</div>
+          <canvas id="raceChart"></canvas>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const SEATTLE_CENTER = [47.62, -122.33];
+/* ==========================================================================
+   EMS Predictive Relocation — multi-city simulator
+
+   Data contract: data/bundles/index.json lists cities; data/bundles/<id>.json
+   holds everything for one city (summary, zones, compliance table, home bases
+   with geocoded addresses, race events, cumulative curves, histogram, and the
+   OSRM-derived speed calibration). Built by src/export_city_bundles.py.
+   ========================================================================== */
+
+const TILE = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+const TILE_ATTR = '&copy; OSM &copy; CARTO';
+
+let CITIES = [];
+let B = null;              // active city bundle
+let maps = {};             // leaflet instances by container id
+let layers = {};           // per-view layer groups, cleared on city switch
 
 function colorForWeight(w, maxW) {
   const t = Math.min(1, w / maxW);
@@ -209,166 +420,227 @@ function colorForWeight(w, maxW) {
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
 
-let addresses = [];
-let mapSimple, mapSimpleMarkers = [], detailCardEl = null;
+function ensureMap(id, center, zoom) {
+  if (maps[id]) return maps[id];
+  const m = L.map(id).setView(center, zoom);
+  L.tileLayer(TILE, { attribution: TILE_ATTR }).addTo(m);
+  maps[id] = m;
+  setTimeout(() => m.invalidateSize(), 80);
+  return m;
+}
+function clearLayers(key) {
+  (layers[key] || []).forEach(l => { try { l.remove(); } catch(e){} });
+  layers[key] = [];
+}
+function track(key, layer) { (layers[key] = layers[key] || []).push(layer); return layer; }
 
-async function initSimple() {
-  addresses = await (await fetch('../data/home_addresses.json')).json();
-  const summary = await (await fetch('../data/dynamic_sim_seattle.json')).json();
+/* ---------------------------------------------------------------- SIMPLE */
+let detailCardEl = null;
 
-  mapSimple = L.map('map1').setView(SEATTLE_CENTER, 12);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution:'&copy; OSM &copy; CARTO' }).addTo(mapSimple);
-  setTimeout(() => mapSimple.invalidateSize(), 100);
+function renderSimple() {
+  const map = ensureMap('map1', B.center, 12);
+  clearLayers('simple');
+  map.setView(B.center, 12);
+  if (detailCardEl) { detailCardEl.remove(); detailCardEl = null; }
+
+  const posts = dedupePosts(B.home_bases);
+  document.getElementById('simpleSub').textContent =
+    `${posts.length} recommended posts, ranked by priority. Tap one to see it on the map.`;
 
   const listEl = document.getElementById('postList');
-  addresses.forEach((p, rank) => {
-    const label = p.street || p.display_name.split(',').slice(0,2).join(',');
-    const marker = L.marker([p.lat, p.lng], {
-      icon: L.divIcon({ className:'', html:`<div style="background:#7c5cff;color:white;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;box-shadow:0 0 0 2px white,0 2px 8px rgba(0,0,0,.5);">${rank+1}</div>`, iconSize:[26,26] })
-    }).addTo(mapSimple);
-    marker.on('click', () => selectPost(rank));
-    mapSimpleMarkers.push(marker);
+  listEl.innerHTML = '';
+
+  posts.forEach((p, i) => {
+    const label = p.street || `Zone ${p.zone_id} post`;
+    const marker = track('simple', L.marker([p.lat, p.lng], {
+      icon: L.divIcon({ className:'', html:`<div style="background:#7c5cff;color:white;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;box-shadow:0 0 0 2px white,0 2px 8px rgba(0,0,0,.5);">${i+1}</div>`, iconSize:[26,26] })
+    }).addTo(map));
+    marker.on('click', () => selectPost(i));
 
     const card = document.createElement('div');
     card.className = 'post-card';
-    card.dataset.rank = rank;
+    card.dataset.rank = i;
     card.innerHTML = `
-      <div class="rank-badge">${rank+1}</div>
+      <div class="rank-badge">${i+1}</div>
       <div class="post-info">
         <div class="street">${label}</div>
-        <div class="hood">${p.neighborhood || ''} · staffed post</div>
+        <div class="hood">${p.neighborhood || B.short} · staffed post</div>
       </div>`;
-    card.addEventListener('click', () => selectPost(rank));
+    card.addEventListener('click', () => selectPost(i));
     listEl.appendChild(card);
   });
 
-  function selectPost(rank) {
+  function selectPost(i) {
     document.querySelectorAll('.post-card').forEach(c => c.classList.remove('selected'));
-    document.querySelector(`.post-card[data-rank="${rank}"]`).classList.add('selected');
-    const p = addresses[rank];
-    mapSimple.flyTo([p.lat, p.lng], 14, { duration: 0.6 });
+    const el = document.querySelector(`.post-card[data-rank="${i}"]`);
+    if (el) el.classList.add('selected');
+    const p = posts[i];
+    map.flyTo([p.lat, p.lng], 14, { duration: 0.6 });
 
     if (detailCardEl) detailCardEl.remove();
     detailCardEl = document.createElement('div');
     detailCardEl.className = 'detail-card';
     detailCardEl.innerHTML = `
-      <div class="rank-line"><div class="rank-badge">${rank+1}</div><h3>${p.street || 'Recommended post'}</h3></div>
-      <div class="addr">${p.display_name}</div>
+      <div class="rank-line"><div class="rank-badge">${i+1}</div><h3>${p.street || 'Recommended post'}</h3></div>
+      <div class="addr">${p.display_name || `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`}</div>
       <div class="stat-mini-row">
-        <div class="stat-mini"><div class="l">Priority rank</div><div class="v">#${rank+1} of 16</div></div>
-        <div class="stat-mini"><div class="l">Model improvement</div><div class="v good">${summary.pct_improvement}% faster</div></div>
+        <div class="stat-mini"><div class="l">Priority rank</div><div class="v">#${i+1} of ${posts.length}</div></div>
+        <div class="stat-mini"><div class="l">Model improvement</div><div class="v good">${B.summary.pct_improvement}% faster</div></div>
       </div>`;
     document.getElementById('map1').appendChild(detailCardEl);
   }
-
-  selectPost(0);
+  if (posts.length) selectPost(0);
 }
 
-async function initHoodDemand() {
-  const data = await (await fetch('../data/dynamic_sim_seattle.json')).json();
-  const map = L.map('mapDemand').setView(SEATTLE_CENTER, 12);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution:'&copy; OSM &copy; CARTO' }).addTo(map);
-  setTimeout(() => map.invalidateSize(), 100);
-  window._mapDemand = map;
+function dedupePosts(homeBases) {
+  const seen = new Set(), out = [];
+  homeBases.forEach(h => { if (!seen.has(h.zone_id)) { seen.add(h.zone_id); out.push(h); } });
+  return out;
+}
 
-  document.getElementById('statQ').textContent = data.busy_fraction_q;
-  document.getElementById('statStandard').textContent = data.response_standard_min + ' min';
+/* ------------------------------------------------------- UNDER THE HOOD */
+function renderDemand() {
+  const map = ensureMap('mapDemand', B.center, 12);
+  clearLayers('demand');
+  map.setView(B.center, 12);
 
+  const s = B.summary;
+  document.getElementById('statQ').textContent = s.busy_fraction_q;
+  document.getElementById('statStandard').textContent = (s.response_standard_min ?? 8) + ' min';
+
+  const c = B.calibration;
+  document.getElementById('calibText').innerHTML = c
+    ? `Measured from <b>${c.n_real_legs.toLocaleString()}</b> real OSRM road-routing legs on this city's own
+       call locations: median effective straight-line speed <b>${c.median_effective_straight_line_mph} mph</b>,
+       median road detour factor <b>${c.median_road_detour_factor}×</b> vs. straight line. The simulation uses
+       the real per-leg OSRM durations directly — these two numbers are the summary of what those routes imply.`
+    : '—';
+
+  const rc = document.getElementById('realCheckCard');
+  if (s.REAL_measured_response_min_median !== undefined) {
+    rc.style.display = '';
+    document.getElementById('realCheckText').innerHTML =
+      `This city's CAD export contains <b>real measured</b> response times
+       (<b>${s.REAL_measured_n.toLocaleString()}</b> real responses): median
+       <b>${s.REAL_measured_response_min_median} min</b>, p90
+       <b>${s.REAL_measured_response_min_p90} min</b>. Our simulated <i>static</i> baseline p90 is
+       <b>${s.p90_response_min_static} min</b> — landing within
+       <b>${Math.abs(s.p90_response_min_static - s.REAL_measured_response_min_p90).toFixed(2)} min</b>
+       of the real world without being fitted to it. That is a realism check on the simulation, not a
+       claim about what this department would have achieved.`;
+  } else {
+    rc.style.display = 'none';
+  }
+
+  loadForecast();
+
+  const zones = B.zones;
+  const maxW = Math.max(...zones.map(z => z.weight));
+  const rankOf = {};
+  B.compliance_table.forEach((zoneId, i) => { rankOf[zoneId] = i + 1; });
+
+  const tbody = document.querySelector('#zoneTable tbody');
+  tbody.innerHTML = '';
+  zones.forEach((z, i) => {
+    const color = colorForWeight(z.weight, maxW);
+    track('demand', L.circle([z.lat, z.lng], { radius: 400 + z.weight*18000, color, fillColor: color, fillOpacity: 0.45, weight: 1 })
+      .addTo(map).bindTooltip(`Zone ${i}: ${(z.calls ?? Math.round(z.weight*B.summary.n_calls)).toLocaleString()} calls`));
+    const rank = rankOf[i];
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><span class="zone-chip" style="background:${color}"></span></td><td>${i}</td>
+      <td>${(z.calls ?? Math.round(z.weight*B.summary.n_calls)).toLocaleString()}</td>
+      <td>${rank ? '<span class="staffed">#'+rank+'</span>' : '—'}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  dedupePosts(B.home_bases).forEach((h, i) => {
+    track('demand', L.marker([h.lat, h.lng], {
+      icon: L.divIcon({ className:'', html:`<div style="background:#33c17a;width:16px;height:16px;border-radius:50%;box-shadow:0 0 0 2px white,0 2px 6px rgba(0,0,0,.5);"></div>`, iconSize:[16,16] })
+    }).addTo(map).bindTooltip(`Compliance rank #${i+1}${h.street ? ' · '+h.street : ''}`));
+  });
+}
+
+async function loadForecast() {
+  const elS = document.getElementById('forecastSummary');
+  const elN = document.getElementById('forecastNextHour');
+  // The ML demand forecaster currently exists for Seattle only.
+  if (B.id !== 'seattle') {
+    elS.textContent = `The ML call-volume forecaster (src/forecast_demand.py) is currently built for Seattle's ` +
+      `4-year hourly history. ${B.short}'s bundle uses the same MEXCLP siting model without it.`;
+    elN.textContent = '';
+    return;
+  }
   try {
     const fc = await (await fetch('../data/demand_forecast.json')).json();
     const m = fc.holdout_metrics;
-    document.getElementById('forecastSummary').textContent =
+    elS.textContent =
       `Gradient-boosted regressor, trained on ${fc.n_train_hours.toLocaleString()} real hourly ` +
       `call-volume observations. Held out the last ${fc.n_test_hours} real hours (never seen in ` +
       `training): MAE ${m.model_mae} calls/hr vs. ${m.naive_baseline_mae} for a naive historical-average ` +
       `baseline (${m.mae_improvement_pct_vs_naive > 0 ? '+' : ''}${m.mae_improvement_pct_vs_naive}% improvement).`;
     const next = fc.next_24h_forecast[0];
-    document.getElementById('forecastNextHour').innerHTML =
-      `Next hour (${next.datetime.slice(11,16)}): <b>${next.predicted_calls.toFixed(1)} predicted calls</b>`;
+    elN.innerHTML = `Next hour (${next.datetime.slice(11,16)}): <b>${next.predicted_calls.toFixed(1)} predicted calls</b>`;
   } catch (e) {
-    document.getElementById('forecastSummary').textContent = 'Run src/forecast_demand.py to generate.';
+    elS.textContent = 'Run src/forecast_demand.py to generate.';
+    elN.textContent = '';
   }
-
-  const zones = data.all_zone_centers;
-  const maxW = Math.max(...zones.map(z => z.weight));
-  const rankOf = {};
-  data.compliance_table.forEach((zoneId, i) => { rankOf[zoneId] = i + 1; });
-
-  const tbody = document.querySelector('#zoneTable tbody');
-  zones.forEach((z, i) => {
-    const color = colorForWeight(z.weight, maxW);
-    L.circle([z.lat, z.lng], { radius: 400 + z.weight*18000, color, fillColor: color, fillOpacity: 0.45, weight: 1 })
-      .addTo(map).bindTooltip(`Zone ${i}: ${(z.weight*data.n_calls).toFixed(0)} calls`);
-    const rank = rankOf[i];
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td><span class="zone-chip" style="background:${color}"></span></td><td>${i}</td>
-      <td>${Math.round(z.weight*data.n_calls).toLocaleString()}</td>
-      <td>${rank ? '<span class="staffed">#'+rank+'</span>' : '—'}</td>`;
-    tbody.appendChild(tr);
-  });
-
-  data.home_bases.forEach((h, i) => {
-    L.marker([h.lat, h.lng], {
-      icon: L.divIcon({ className:'', html:`<div style="background:#33c17a;width:16px;height:16px;border-radius:50%;box-shadow:0 0 0 2px white,0 2px 6px rgba(0,0,0,.5);"></div>`, iconSize:[16,16] })
-    }).addTo(map).bindTooltip(`Compliance rank #${i+1}`);
-  });
 }
 
-let sim = { events:[], idx:0, playing:false, timer:null, markers:{}, respTotal:0, respCount:0, delayed:0 };
+/* -------------------------------------------------- LIVE SIM (single) */
+let sim = { events:[], idx:0, playing:false, timer:null, markers:{}, respTotal:0, respCount:0, delayed:0, lastIdle:undefined };
 
-async function initHoodSim() {
-  const trace = await (await fetch('../data/sim_trace_seattle.json')).json();
-  window._trace = trace;
-  const map = L.map('map2').setView(SEATTLE_CENTER, 12);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution:'&copy; OSM &copy; CARTO' }).addTo(map);
-  setTimeout(() => map.invalidateSize(), 100);
-  window._map2 = map;
+function renderSim() {
+  const map = ensureMap('map2', B.center, 12);
+  clearLayers('sim');
+  map.setView(B.center, 12);
 
-  const maxW = Math.max(...trace.all_zone_centers.map(z => z.weight));
-  trace.all_zone_centers.forEach(z => {
+  const maxW = Math.max(...B.zones.map(z => z.weight));
+  B.zones.forEach(z => {
     const color = colorForWeight(z.weight, maxW);
-    L.circle([z.lat, z.lng], { radius: 300 + z.weight*14000, color, fillColor: color, fillOpacity: 0.18, weight: 1 }).addTo(map);
+    track('sim', L.circle([z.lat, z.lng], { radius: 300 + z.weight*14000, color, fillColor: color, fillOpacity: 0.18, weight: 1 }).addTo(map));
   });
 
-  document.getElementById('simDateLabel').textContent = `Replaying real calls from ${trace.date} (${trace.n_calls} calls, busiest day in the 60-day window)`;
+  document.getElementById('simDateLabel').textContent =
+    `Replaying real calls from ${B.race.date} (${B.race.n_calls} calls, busiest day in the 60-day window)`;
   loadStrategy(document.getElementById('strategySelect').value);
 }
 
 function loadStrategy(strategy) {
-  const trace = window._trace;
-  const map = window._map2;
-  const events = strategy === 'static' ? trace.static_events : trace.dynamic_events;
+  const map = maps['map2'];
+  const events = strategy === 'static' ? B.race.static_events : B.race.dynamic_events;
+  Object.values(sim.markers).forEach(m => { try { map.removeLayer(m); } catch(e){} });
+  clearInterval(sim.timer);
 
-  Object.values(sim.markers).forEach(m => map.removeLayer(m));
-  sim = { events, idx:0, playing:false, timer:sim.timer, markers:{}, respTotal:0, respCount:0, delayed:0 };
-
-  for (let i = 0; i < trace.n_ambulances; i++) {
-    const home = trace.home_bases[i];
-    const icon = L.divIcon({ className:'', html:`<div class="amb-icon">🚑</div>`, iconSize:[22,22] });
-    sim.markers[i] = L.marker([home.lat, home.lng], { icon }).addTo(map);
+  sim = { events, idx:0, playing:false, timer:null, markers:{}, respTotal:0, respCount:0, delayed:0, lastIdle:undefined };
+  const posts = B.home_bases;
+  for (let i = 0; i < B.race.n_ambulances; i++) {
+    const home = posts[i] || posts[posts.length-1];
+    sim.markers[i] = L.marker([home.lat, home.lng], {
+      icon: L.divIcon({ className:'', html:`<div class="amb-icon">🚑</div>`, iconSize:[22,22] })
+    }).addTo(map);
   }
-
   document.getElementById('timeline').max = events.length - 1;
   document.getElementById('timeline').value = 0;
   document.getElementById('lastEvent').textContent = '—';
-  updateStats();
+  document.getElementById('playBtn').textContent = '▶ Play';
+  updateSimStats();
 }
 
 function stepForward() {
-  const events = sim.events;
-  if (sim.idx >= events.length) { pause(); return; }
-  const ev = events[sim.idx];
-  const map = window._map2;
+  if (sim.idx >= sim.events.length) { pauseSim(); return; }
+  const ev = sim.events[sim.idx];
+  const map = maps['map2'];
 
   const marker = sim.markers[ev.ambulance_id];
   if (marker) marker.setLatLng([ev.to_lat, ev.to_lng]);
 
   const callDot = L.circleMarker([ev.call_lat, ev.call_lng], { radius:6, color:'#ff5c5c', fillColor:'#ff5c5c', fillOpacity:0.9, weight:1 }).addTo(map);
-  setTimeout(() => map.removeLayer(callDot), 900);
+  setTimeout(() => { try { map.removeLayer(callDot); } catch(e){} }, 900);
 
   sim.respTotal += ev.response_min;
   sim.respCount += 1;
   if (ev.wait_min > 0) sim.delayed += 1;
+  sim.lastIdle = ev.n_idle_at_arrival;
 
   document.getElementById('lastEvent').textContent =
     `${ev.t.split('T')[1]} · Unit ${ev.ambulance_id} dispatched, ${ev.response_min.toFixed(1)} min response` +
@@ -376,66 +648,667 @@ function stepForward() {
 
   sim.idx += 1;
   document.getElementById('timeline').value = sim.idx;
-  updateStats();
+  updateSimStats();
 }
 
-function updateStats() {
+function updateSimStats() {
   document.getElementById('statCalls').textContent = sim.respCount;
   document.getElementById('statAvgResp').textContent = sim.respCount ? (sim.respTotal/sim.respCount).toFixed(1)+' min' : '-';
   document.getElementById('statDelayed').textContent = sim.delayed;
+  const n = B.race.n_ambulances;
+  const idle = sim.lastIdle === undefined ? n : sim.lastIdle;
+  document.getElementById('statBusy').textContent = `${n - idle} / ${n}`;
 }
 
-function play() {
+function playSim() {
   if (sim.playing) return;
   sim.playing = true;
   document.getElementById('playBtn').textContent = '⏸ Pause';
-  const speed = +document.getElementById('speedSelect').value;
-  sim.timer = setInterval(stepForward, speed);
+  sim.timer = setInterval(stepForward, +document.getElementById('speedSelect').value);
 }
-function pause() {
+function pauseSim() {
   sim.playing = false;
   document.getElementById('playBtn').textContent = '▶ Play';
   clearInterval(sim.timer);
 }
 
+/* ============================== RACE DOCK ============================== */
+let race = { i:0, playing:false, timer:null, sTot:0, dTot:0, won:0, saved:0, maxSeen:1 };
+
+function resetRace() {
+  clearInterval(race.timer);
+  race = { i:0, playing:false, timer:null, sTot:0, dTot:0, won:0, saved:0, maxSeen:1 };
+  ['fillS','fillD'].forEach(id => document.getElementById(id).style.width = '0%');
+  ['ambS','ambD'].forEach(id => document.getElementById(id).style.left = '0%');
+  document.getElementById('numS').textContent = '';
+  document.getElementById('numD').textContent = '';
+  document.getElementById('rsCalls').textContent = '0';
+  document.getElementById('rsWon').textContent = '0';
+  document.getElementById('rsSaved').textContent = '0';
+  document.getElementById('rsAvg').textContent = '— vs —';
+  document.getElementById('raceBtn').textContent = '▶ Race them';
+  document.getElementById('raceLive').style.display = 'none';
+  document.getElementById('winFlash').style.display = 'none';
+  drawRaceChart(0);
+}
+
+function raceStep() {
+  const S = B.race.static_events, D = B.race.dynamic_events;
+  if (race.i >= S.length) { pauseRace(); document.getElementById('raceBtn').textContent = '✓ Finished'; return; }
+
+  const s = S[race.i].response_min, d = D[race.i].response_min;
+  race.sTot += s; race.dTot += d; race.i += 1;
+  race.saved += (s - d);
+  if (d < s) race.won += 1;
+
+  // Lane length encodes THIS call's response time -- shorter bar = arrived sooner.
+  race.maxSeen = Math.max(race.maxSeen, s, d);
+  const scale = v => Math.max(3, Math.min(100, (v / race.maxSeen) * 100));
+  const ws = scale(s), wd = scale(d);
+  document.getElementById('fillS').style.width = ws + '%';
+  document.getElementById('fillD').style.width = wd + '%';
+  document.getElementById('ambS').style.left = ws + '%';
+  document.getElementById('ambD').style.left = wd + '%';
+  document.getElementById('numS').textContent = s.toFixed(1) + ' min';
+  document.getElementById('numD').textContent = d.toFixed(1) + ' min';
+
+  const flash = document.getElementById('winFlash');
+  if (d < s) {
+    flash.style.display = '';
+    flash.textContent = `dynamic arrived ${(s-d).toFixed(1)} min sooner on this call`;
+    flash.style.background = 'rgba(51,193,122,.16)'; flash.style.color = 'var(--dynamic)';
+  } else if (s < d) {
+    flash.style.display = '';
+    flash.textContent = `static arrived ${(d-s).toFixed(1)} min sooner on this call`;
+    flash.style.background = 'rgba(255,138,92,.16)'; flash.style.color = 'var(--static)';
+  } else {
+    flash.style.display = '';
+    flash.textContent = 'tie on this call';
+    flash.style.background = 'rgba(138,146,158,.16)'; flash.style.color = 'var(--muted)';
+  }
+
+  document.getElementById('rsCalls').textContent = race.i;
+  document.getElementById('rsWon').textContent = `${race.won} / ${race.i}`;
+  document.getElementById('rsSaved').textContent = race.saved.toFixed(0) + ' min';
+  document.getElementById('rsAvg').innerHTML =
+    `<span style="color:var(--static)">${(race.sTot/race.i).toFixed(1)}</span> vs ` +
+    `<span style="color:var(--dynamic)">${(race.dTot/race.i).toFixed(1)}</span> min`;
+
+  drawRaceChart(race.i / S.length);
+}
+
+function playRace() {
+  if (race.playing) return;
+  if (race.i >= B.race.static_events.length) resetRace();
+  race.playing = true;
+  document.getElementById('raceBtn').textContent = '⏸ Pause';
+  document.getElementById('raceLive').style.display = '';
+  race.timer = setInterval(raceStep, +document.getElementById('raceSpeed').value);
+}
+function pauseRace() {
+  race.playing = false;
+  document.getElementById('raceBtn').textContent = '▶ Race them';
+  document.getElementById('raceLive').style.display = 'none';
+  clearInterval(race.timer);
+}
+
+/* Cumulative-average chart over the FULL 60-day run (not just the raced day).
+   progress 0..1 draws a moving marker so the dock feels connected to the race. */
+function drawRaceChart(progress) {
+  const cv = document.getElementById('raceChart');
+  const cum = B.cumulative;
+  if (!cum) return;
+  const dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth, h = cv.clientHeight;
+  cv.width = w * dpr; cv.height = h * dpr;
+  const g = cv.getContext('2d');
+  g.scale(dpr, dpr);
+  g.clearRect(0,0,w,h);
+
+  const xs = cum.call_index, S = cum.static_avg_min, D = cum.dynamic_avg_min;
+  const all = S.concat(D);
+  const lo = Math.min(...all) * 0.94, hi = Math.max(...all) * 1.06;
+  const px = i => (i / (xs.length - 1)) * (w - 6) + 3;
+  const py = v => h - 8 - ((v - lo) / (hi - lo)) * (h - 16);
+
+  g.lineWidth = 1;
+  g.strokeStyle = 'rgba(255,255,255,.06)';
+  for (let k = 0; k <= 2; k++) {
+    const y = 8 + (h - 16) * (k/2);
+    g.beginPath(); g.moveTo(3, y); g.lineTo(w-3, y); g.stroke();
+  }
+
+  const line = (arr, color, fill) => {
+    g.beginPath();
+    arr.forEach((v,i) => i ? g.lineTo(px(i), py(v)) : g.moveTo(px(i), py(v)));
+    g.strokeStyle = color; g.lineWidth = 1.8; g.stroke();
+    if (fill) {
+      g.lineTo(px(arr.length-1), h-8); g.lineTo(px(0), h-8); g.closePath();
+      g.fillStyle = fill; g.fill();
+    }
+  };
+  line(S, '#ff8a5c', 'rgba(255,138,92,.10)');
+  line(D, '#33c17a', 'rgba(51,193,122,.14)');
+
+  if (progress > 0) {
+    const x = 3 + (w - 6) * Math.min(1, progress);
+    g.beginPath(); g.moveTo(x, 4); g.lineTo(x, h-6);
+    g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 1; g.stroke();
+  }
+
+  g.font = '9px -apple-system,sans-serif';
+  g.fillStyle = '#ff8a5c'; g.fillText('static', w - 62, 12);
+  g.fillStyle = '#33c17a'; g.fillText('dynamic', w - 62, 23);
+}
+
+function renderRaceDock() {
+  resetRace();
+  const s = B.summary;
+  document.getElementById('raceCaption').innerHTML =
+    `Replaying ${B.race.date}, the single <b>busiest</b> day (${B.race.n_calls} calls) — a harder case than average. ` +
+    `<b style="color:var(--text)">Full 60-day average: ${s.pct_improvement}% faster</b>, p=${(+s.wilcoxon_p_value).toExponential(1)}.`;
+}
+
+/* =========================== CITY SWITCHING =========================== */
+async function loadCity(id) {
+  B = await (await fetch(`../data/bundles/${id}.json`)).json();
+  window.B = B;
+  pauseSim(); pauseRace();
+
+  document.getElementById('cityTitle').textContent = `EMS Predictive Relocation — ${B.name}`;
+  document.getElementById('citySub').textContent =
+    `${B.blurb} · ${B.summary.n_calls.toLocaleString()} real calls · MEXCLP compliance-table model · ` +
+    `${B.summary.sim_days}-day simulation`;
+
+  document.querySelectorAll('.cityPill').forEach(p => p.classList.toggle('active', p.dataset.city === id));
+
+  renderSimple();
+  renderDemand();
+  renderSim();
+  renderRaceDock();
+  setTimeout(() => Object.values(maps).forEach(m => m.invalidateSize()), 60);
+}
+
+async function initCities() {
+  const idx = await (await fetch('../data/bundles/index.json')).json();
+  CITIES = idx.cities;
+  const wrap = document.getElementById('cityPills');
+  wrap.innerHTML = '';
+  CITIES.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'cityPill';
+    el.dataset.city = c.id;
+    el.innerHTML = `${c.short} <span class="imp">${c.pct_improvement}%↓</span>`;
+    el.title = `${c.name} — ${c.blurb}, ${c.n_calls.toLocaleString()} real calls`;
+    el.addEventListener('click', () => loadCity(c.id));
+    wrap.appendChild(el);
+  });
+  await loadCity(CITIES[0].id);
+}
+
+/* ======================= CAD UPLOAD: REAL PIPELINE =======================
+   Everything below runs client-side on the user's own file. It is the same
+   algorithm as the Python pipeline (k-means zoning -> Daskin 1983 greedy
+   MEXCLP -> paired static/dynamic queueing simulation) with ONE disclosed
+   substitution: travel time comes from straight-line distance converted with
+   this project's OSRM-measured speed calibration, instead of live per-leg OSRM
+   road routing (which needs a server-side precompute). Disclosed in the UI.
+   ====================================================================== */
+const CAD = { rows:null, headers:null, result:null, map:null, layers:[] };
+
+function logU(msg) {
+  const el = document.getElementById('uploadLog');
+  el.style.display = 'block';
+  el.textContent += msg + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+function setStep(n, cls) {
+  const el = document.getElementById('st'+n);
+  el.classList.remove('on','done');
+  if (cls) el.classList.add(cls);
+}
+
+function parseCSV(text, maxRows = 60000) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length);
+  if (!lines.length) throw new Error('file is empty');
+  const split = line => {
+    const out = []; let cur = '', q = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { if (q && line[i+1] === '"') { cur += '"'; i++; } else q = !q; }
+      else if (ch === ',' && !q) { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur); return out;
+  };
+  const headers = split(lines[0]).map(h => h.trim().replace(/^"|"$/g,''));
+  const rows = [];
+  for (let i = 1; i < lines.length && rows.length < maxRows; i++) {
+    const parts = split(lines[i]);
+    if (parts.length < 2) continue;
+    const o = {};
+    headers.forEach((h, j) => o[h] = (parts[j] ?? '').trim());
+    rows.push(o);
+  }
+  return { headers, rows, truncated: lines.length - 1 > maxRows, totalLines: lines.length - 1 };
+}
+
+function guessColumn(headers, rows, kind) {
+  const pats = {
+    lat:  [/^lat$/i, /latitude/i, /^y$/i, /lat_?x?$/i],
+    lng:  [/^lng$/i, /^lon$/i, /longitude/i, /^x$/i, /lng_?x?$/i, /long/i],
+    time: [/create.*time/i, /time.*stamp/i, /^datetime$/i, /^date_?time$/i, /^time$/i, /^date$/i, /received/i, /call.*time/i],
+  }[kind];
+  for (const p of pats) {
+    const hit = headers.find(h => p.test(h));
+    if (hit) return hit;
+  }
+  // Fall back to sniffing values.
+  for (const h of headers) {
+    const vals = rows.slice(0, 60).map(r => r[h]).filter(v => v);
+    if (!vals.length) continue;
+    if (kind === 'lat' || kind === 'lng') {
+      const nums = vals.map(Number).filter(n => !isNaN(n));
+      if (nums.length < vals.length * 0.8) continue;
+      const min = Math.min(...nums), max = Math.max(...nums);
+      if (kind === 'lat' && min > -90 && max < 90 && Math.abs(max) > 1) return h;
+      if (kind === 'lng' && min > -180 && max < 180 && Math.abs(min) > 1) return h;
+    } else {
+      if (vals.filter(v => !isNaN(Date.parse(v))).length > vals.length * 0.7) return h;
+    }
+  }
+  return '';
+}
+
+function haversineMiles(la1, lo1, la2, lo2) {
+  const R = 3958.8, rad = Math.PI/180;
+  const dLa = (la2-la1)*rad, dLo = (lo2-lo1)*rad;
+  const a = Math.sin(dLa/2)**2 + Math.cos(la1*rad)*Math.cos(la2*rad)*Math.sin(dLo/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+
+function kmeans(pts, k, iters = 22) {
+  // k-means++ style seeding, then Lloyd iterations.
+  const n = pts.length;
+  let cent = [pts[Math.floor(n/2)]];
+  while (cent.length < k) {
+    let best = null, bestD = -1;
+    for (let t = 0; t < 40; t++) {
+      const cand = pts[Math.floor(Math.random()*n)];
+      const d = Math.min(...cent.map(c => haversineMiles(cand[0],cand[1],c[0],c[1])));
+      if (d > bestD) { bestD = d; best = cand; }
+    }
+    cent.push(best);
+  }
+  let assign = new Array(n).fill(0);
+  for (let it = 0; it < iters; it++) {
+    for (let i = 0; i < n; i++) {
+      let bi = 0, bd = Infinity;
+      for (let c = 0; c < k; c++) {
+        const d = haversineMiles(pts[i][0],pts[i][1],cent[c][0],cent[c][1]);
+        if (d < bd) { bd = d; bi = c; }
+      }
+      assign[i] = bi;
+    }
+    const sum = Array.from({length:k}, () => [0,0,0]);
+    for (let i = 0; i < n; i++) { sum[assign[i]][0]+=pts[i][0]; sum[assign[i]][1]+=pts[i][1]; sum[assign[i]][2]++; }
+    cent = cent.map((c,i) => sum[i][2] ? [sum[i][0]/sum[i][2], sum[i][1]/sum[i][2]] : c);
+  }
+  return { centers: cent, assign };
+}
+
+function mexclp(weights, q, zzMin, standardMin, nRanks) {
+  const k = weights.length;
+  const covers = zzMin.map(row => row.map(v => v <= standardMin));
+  const chosen = [], covCount = new Array(k).fill(0);
+  const remaining = new Set(Array.from({length:k}, (_,i)=>i));
+  for (let r = 0; r < Math.min(nRanks, k); r++) {
+    let bestSite = null, bestGain = -Infinity;
+    for (const s of remaining) {
+      let gain = 0;
+      for (let i = 0; i < k; i++) if (covers[i][s]) gain += weights[i] * Math.pow(q, covCount[i]) * (1 - q);
+      if (gain > bestGain) { bestGain = gain; bestSite = s; }
+    }
+    chosen.push(bestSite);
+    for (let i = 0; i < k; i++) if (covers[i][bestSite]) covCount[i]++;
+    remaining.delete(bestSite);
+  }
+  return chosen;
+}
+
+function simulateStrategy(calls, centers, zzMin, zcMin, table, strategy, homeZones, serviceMean, seed) {
+  // Deterministic LCG so static and dynamic see the IDENTICAL service-time
+  // draws -- this is a paired comparison, same as the Python simulation.
+  let st = seed >>> 0;
+  const rnd = () => ((st = (1103515245*st + 12345) >>> 0) / 4294967296);
+  const lognorm = () => {
+    let u = 0, v = 0;
+    while (!u) u = rnd(); while (!v) v = rnd();
+    const z = Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+    return Math.max(5, Math.exp(Math.log(serviceMean) + 0.35*z));
+  };
+  const N = homeZones.length;
+  const amb = Array.from({length:N}, (_,i) => ({ id:i, zone:homeZones[i], home:homeZones[i], free:-Infinity,
+                                                  lat:centers[homeZones[i]][0], lng:centers[homeZones[i]][1] }));
+  const nearestZone = (lat,lng) => {
+    let bi=0, bd=Infinity;
+    for (let c=0;c<centers.length;c++){ const d=haversineMiles(lat,lng,centers[c][0],centers[c][1]); if(d<bd){bd=d;bi=c;} }
+    return bi;
+  };
+  const resp = new Float64Array(calls.length);
+  let delayed = 0;
+
+  for (let i = 0; i < calls.length; i++) {
+    const t = calls[i].t;
+    const idle = amb.filter(a => a.free <= t);
+
+    if (strategy === 'static') {
+      idle.forEach(a => { a.zone = a.home; a.lat = centers[a.zone][0]; a.lng = centers[a.zone][1]; });
+    } else if (idle.length) {
+      const targets = table.slice(0, idle.length);
+      const pool = idle.slice();
+      for (const tz of targets) {
+        let bi = 0, bd = Infinity;
+        for (let j = 0; j < pool.length; j++) {
+          const sz = pool[j].zone ?? nearestZone(pool[j].lat, pool[j].lng);
+          const d = zzMin[sz][tz];
+          if (d < bd) { bd = d; bi = j; }
+        }
+        const a = pool.splice(bi,1)[0];
+        a.zone = tz; a.lat = centers[tz][0]; a.lng = centers[tz][1];
+      }
+    }
+
+    let chosen, start, wait, travel;
+    if (idle.length) {
+      let bi = 0, bd = Infinity;
+      for (let j = 0; j < idle.length; j++) {
+        const z = idle[j].zone ?? nearestZone(idle[j].lat, idle[j].lng);
+        const d = zcMin[z][i];
+        if (d < bd) { bd = d; bi = j; }
+      }
+      chosen = idle[bi]; start = t; wait = 0; travel = bd;
+    } else {
+      chosen = amb.reduce((m,a) => a.free < m.free ? a : m, amb[0]);
+      start = chosen.free; wait = (start - t) / 60000;
+      const z = chosen.zone ?? nearestZone(chosen.lat, chosen.lng);
+      travel = zcMin[z][i];
+      delayed++;
+    }
+
+    resp[i] = wait + travel;
+    chosen.free = start + (travel + lognorm()) * 60000;
+    chosen.lat = calls[i].lat; chosen.lng = calls[i].lng; chosen.zone = null;
+  }
+  return { resp, delayed };
+}
+
+function quantile(sorted, p) {
+  const idx = (sorted.length - 1) * p, lo = Math.floor(idx), hi = Math.ceil(idx);
+  return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi]-sorted[lo])*(idx-lo);
+}
+
+async function runCadPipeline() {
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true; btn.textContent = 'Running…';
+  document.getElementById('uploadLog').textContent = '';
+  const yield_ = () => new Promise(r => setTimeout(r, 0));
+
+  try {
+    const latC = document.getElementById('colLat').value;
+    const lngC = document.getElementById('colLng').value;
+    const timeC = document.getElementById('colTime').value;
+    if (!latC || !lngC || !timeC) throw new Error('pick latitude, longitude and timestamp columns first');
+
+    setStep(1,'on'); await yield_();
+    let calls = [];
+    for (const r of CAD.rows) {
+      const la = +r[latC], lo = +r[lngC], ts = Date.parse(r[timeC]);
+      if (isNaN(la) || isNaN(lo) || isNaN(ts)) continue;
+      if (la === 0 && lo === 0) continue;
+      if (la < -90 || la > 90 || lo < -180 || lo > 180) continue;
+      calls.push({ lat:la, lng:lo, t:ts });
+    }
+    if (calls.length < 200) throw new Error(`only ${calls.length} usable rows — need at least 200 with valid coords + timestamps`);
+    calls.sort((a,b) => a.t - b.t);
+
+    // Outlier trim: drop rows outside 3 IQR of the coordinate cloud, the same
+    // bad-geocode problem that produced a fake 36.8% result early in this
+    // project (HANDOFF.md sec 2.1). Never skip this on a real CAD export.
+    const lats = calls.map(c=>c.lat).sort((a,b)=>a-b), lngs = calls.map(c=>c.lng).sort((a,b)=>a-b);
+    const bnd = arr => { const q1=quantile(arr,.25), q3=quantile(arr,.75), iqr=q3-q1; return [q1-3*iqr, q3+3*iqr]; };
+    const [laLo,laHi] = bnd(lats), [loLo,loHi] = bnd(lngs);
+    const before = calls.length;
+    calls = calls.filter(c => c.lat>=laLo && c.lat<=laHi && c.lng>=loLo && c.lng<=loHi);
+    logU(`parsed ${CAD.rows.length.toLocaleString()} rows → ${before.toLocaleString()} with valid coords+timestamps`);
+    logU(`bad-geocode trim (3×IQR): dropped ${(before-calls.length).toLocaleString()} → ${calls.length.toLocaleString()} calls`);
+
+    const spanDays = (calls[calls.length-1].t - calls[0].t) / 86400000;
+    // Cap the simulated window so a 10-year export doesn't produce a
+    // meaninglessly diluted busy fraction; use the most recent 60 days.
+    const SIM_DAYS = Math.min(60, Math.max(7, spanDays));
+    if (spanDays > SIM_DAYS) {
+      const cutoff = calls[calls.length-1].t - SIM_DAYS*86400000;
+      calls = calls.filter(c => c.t >= cutoff);
+      logU(`data spans ${spanDays.toFixed(0)} days → using most recent ${SIM_DAYS.toFixed(0)} days (${calls.length.toLocaleString()} calls)`);
+    }
+    setStep(1,'done'); setStep(2,'on'); await yield_();
+
+    const K = 20;
+    const pts = calls.map(c => [c.lat, c.lng]);
+    const { centers, assign } = kmeans(pts, K);
+    const counts = new Array(K).fill(0);
+    assign.forEach(a => counts[a]++);
+    const weights = counts.map(c => c / assign.length);
+    logU(`k-means: ${K} demand zones built from real call density`);
+    setStep(2,'done'); setStep(3,'on'); await yield_();
+
+    // Calibrated straight-line -> drive-time conversion (disclosed substitution
+    // for live OSRM). Uses this project's own OSRM-measured median effective
+    // straight-line speed across 200k+ real routed legs.
+    const MPH = (B && B.calibration) ? B.calibration.median_effective_straight_line_mph : 19.5;
+    const toMin = mi => mi / MPH * 60;
+
+    const zzMin = centers.map(a => centers.map(b => toMin(haversineMiles(a[0],a[1],b[0],b[1]))));
+    const zcMin = centers.map(c => Float64Array.from(calls, k => toMin(haversineMiles(c[0],c[1],k.lat,k.lng))));
+
+    const SERVICE = 50, STANDARD = 8;
+    let fleet = +document.getElementById('fleetSize').value;
+    const simMinutes = SIM_DAYS * 24 * 60;
+    let q = Math.min(0.95, (calls.length * SERVICE) / (fleet * simMinutes));
+    const table = mexclp(weights, q, zzMin, STANDARD, K);
+    const homeZones = Array.from({length:fleet}, (_,i) => table[i % table.length]);
+    logU(`MEXCLP compliance table (Daskin 1983 greedy): ranks ${table.slice(0,8).join(', ')}…`);
+    logU(`fleet ${fleet} units · busy fraction q = ${q.toFixed(3)} · coverage standard ${STANDARD} min`);
+    logU(`travel time: straight-line × OSRM-calibrated ${MPH} mph (see disclosure below)`);
+    setStep(3,'done'); setStep(4,'on'); await yield_();
+
+    const A = simulateStrategy(calls, centers, zzMin, zcMin, table, 'static',  homeZones, SERVICE, 12345);
+    await yield_();
+    const Bv = simulateStrategy(calls, centers, zzMin, zcMin, table, 'dynamic', homeZones, SERVICE, 12345);
+
+    const sArr = Array.from(A.resp), dArr = Array.from(Bv.resp);
+    const mean = a => a.reduce((x,y)=>x+y,0)/a.length;
+    const sS = sArr.slice().sort((a,b)=>a-b), sD = dArr.slice().sort((a,b)=>a-b);
+    const sAvg = mean(sArr), dAvg = mean(dArr);
+    const won = sArr.filter((v,i) => dArr[i] < v).length;
+    const imp = (sAvg - dAvg) / sAvg * 100;
+    logU(`simulation done: static ${sAvg.toFixed(2)} min → dynamic ${dAvg.toFixed(2)} min (${imp.toFixed(1)}% faster)`);
+    setStep(4,'done');
+
+    document.getElementById('uCalls').textContent = calls.length.toLocaleString();
+    document.getElementById('uStatic').textContent = sAvg.toFixed(2) + ' min';
+    document.getElementById('uDynamic').textContent = dAvg.toFixed(2) + ' min';
+    document.getElementById('uImp').textContent = (imp >= 0 ? '' : '') + imp.toFixed(1) + '%';
+    document.getElementById('uMedian').textContent = `${quantile(sS,.5).toFixed(2)} → ${quantile(sD,.5).toFixed(2)} min`;
+    document.getElementById('uP90').textContent = `${quantile(sS,.9).toFixed(2)} → ${quantile(sD,.9).toFixed(2)} min`;
+    document.getElementById('uWon').textContent = `${won.toLocaleString()} of ${sArr.length.toLocaleString()} (${(won/sArr.length*100).toFixed(1)}%)`;
+    document.getElementById('uQ').textContent = q.toFixed(3);
+
+    document.getElementById('uploadDisclose').innerHTML =
+      `<b>What just ran, and what it assumes.</b> Real: your call coordinates, your call timestamps, the
+       k-means demand zoning, the Daskin (1983) MEXCLP compliance table, and the paired queueing simulation —
+       both strategies saw the identical call stream and identical service-time draws.
+       <b>Substituted:</b> travel time here is straight-line distance × ${MPH} mph, this project's median
+       effective speed measured across ${(B&&B.calibration?B.calibration.n_real_legs.toLocaleString():'200,000+')}
+       real OSRM road-routing legs — the browser can't run the server-side OSRM precompute that Seattle and
+       Cincinnati use, so those two cities' published numbers are the road-routed ones and this is a calibrated
+       approximation. <b>Assumed:</b> per-call service duration (~50 min lognormal), since CAD exports almost
+       never contain unit-clear times. <b>Not proven here:</b> this is a counterfactual against a modelled
+       static baseline, not against what your department actually achieved — that needs your real AVL/unit-status
+       feed.`;
+
+    document.getElementById('uploadResults').style.display = 'block';
+
+    // Map the recommended posts on the uploader's own geography.
+    const uniq = [...new Set(homeZones)];
+    if (!CAD.map) {
+      CAD.map = L.map('uploadMap').setView([centers[table[0]][0], centers[table[0]][1]], 11);
+      L.tileLayer(TILE, { attribution: TILE_ATTR }).addTo(CAD.map);
+    }
+    CAD.layers.forEach(l => { try { l.remove(); } catch(e){} });
+    CAD.layers = [];
+    const maxW = Math.max(...weights);
+    centers.forEach((c,i) => {
+      const col = colorForWeight(weights[i], maxW);
+      CAD.layers.push(L.circle([c[0],c[1]], { radius: 400 + weights[i]*18000, color:col, fillColor:col, fillOpacity:.4, weight:1 })
+        .addTo(CAD.map).bindTooltip(`Zone ${i}: ${counts[i].toLocaleString()} calls`));
+    });
+    uniq.forEach((z,i) => {
+      CAD.layers.push(L.marker([centers[z][0], centers[z][1]], {
+        icon: L.divIcon({ className:'', html:`<div style="background:#7c5cff;color:white;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;box-shadow:0 0 0 2px white;">${i+1}</div>`, iconSize:[24,24] })
+      }).addTo(CAD.map).bindTooltip(`Recommended post #${i+1}`));
+    });
+    CAD.map.fitBounds(L.latLngBounds(centers.map(c => [c[0],c[1]])).pad(0.15));
+    setTimeout(() => CAD.map.invalidateSize(), 80);
+
+  } catch (e) {
+    logU('ERROR: ' + e.message);
+    [1,2,3,4].forEach(n => setStep(n,''));
+  } finally {
+    btn.disabled = false; btn.textContent = 'Run the model on this data';
+  }
+}
+
+function onCadFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const { headers, rows, truncated, totalLines } = parseCSV(reader.result);
+      CAD.headers = headers; CAD.rows = rows;
+      document.getElementById('uploadLog').textContent = '';
+      logU(`loaded "${file.name}" — ${totalLines.toLocaleString()} data rows, ${headers.length} columns`);
+      if (truncated) logU(`note: using the first ${rows.length.toLocaleString()} rows (browser memory cap)`);
+
+      const fill = (sel, guess) => {
+        const el = document.getElementById(sel);
+        el.innerHTML = '<option value="">— none —</option>' +
+          headers.map(h => `<option value="${h}"${h===guess?' selected':''}>${h}</option>`).join('');
+      };
+      const gLat = guessColumn(headers, rows, 'lat');
+      const gLng = guessColumn(headers, rows, 'lng');
+      const gTime = guessColumn(headers, rows, 'time');
+      fill('colLat', gLat); fill('colLng', gLng); fill('colTime', gTime);
+      const msg = (id, g, what) => document.getElementById(id).innerHTML =
+        g ? `<div class="ok">auto-detected: ${g}</div>` : `<div class="warn">couldn't detect a ${what} column — pick one</div>`;
+      msg('colLatMsg', gLat, 'latitude'); msg('colLngMsg', gLng, 'longitude'); msg('colTimeMsg', gTime, 'timestamp');
+
+      // Fleet options, defaulted from peak-hour offered load (Erlangs) so the
+      // sim isn't undersized -- an undersized fleet produces runaway queueing
+      // that has nothing to do with the static-vs-dynamic question.
+      let peak = 0;
+      if (gTime) {
+        const buckets = {};
+        rows.forEach(r => { const ts = Date.parse(r[gTime]); if (!isNaN(ts)) { const h = Math.floor(ts/3600000); buckets[h]=(buckets[h]||0)+1; } });
+        peak = Math.max(0, ...Object.values(buckets));
+      }
+      const erlangs = peak * 50 / 60;
+      const suggested = Math.max(6, Math.ceil(erlangs * 1.4));
+      const fs = document.getElementById('fleetSize');
+      fs.innerHTML = '';
+      const opts = new Set([suggested]);
+      for (let v = Math.max(4, suggested-12); v <= suggested+16; v += 2) opts.add(v);
+      [...opts].sort((a,b)=>a-b).forEach(v => {
+        fs.innerHTML += `<option value="${v}"${v===suggested?' selected':''}>${v} ambulances${v===suggested?' (suggested)':''}</option>`;
+      });
+      document.getElementById('fleetMsg').textContent =
+        peak ? `peak ${peak} calls/hr → ~${erlangs.toFixed(1)} Erlangs offered load` : 'pick a fleet size';
+
+      document.getElementById('mappingWrap').style.display = 'grid';
+      document.getElementById('runWrap').style.display = 'flex';
+      setStep(1,'on');
+    } catch (e) {
+      logU('ERROR: ' + e.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ============================== WIRING ============================== */
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById(tab.dataset.view).classList.add('active');
-    if (tab.dataset.view === 'vHood') {
-      setTimeout(() => { window._mapDemand && window._mapDemand.invalidateSize(); window._map2 && window._map2.invalidateSize(); }, 50);
-    } else {
-      setTimeout(() => mapSimple && mapSimple.invalidateSize(), 50);
-    }
+    // Race dock is meaningless on the upload tab (that view has its own results).
+    document.getElementById('raceDock').style.display = tab.dataset.view === 'vUpload' ? 'none' : '';
+    setTimeout(() => { Object.values(maps).forEach(m => m.invalidateSize()); if (CAD.map) CAD.map.invalidateSize(); }, 60);
   });
 });
-
 document.querySelectorAll('.subtab').forEach(st => {
   st.addEventListener('click', () => {
     document.querySelectorAll('.subtab').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.subview').forEach(v => v.classList.remove('active'));
     st.classList.add('active');
     document.getElementById(st.dataset.sub).classList.add('active');
-    setTimeout(() => { window._mapDemand && window._mapDemand.invalidateSize(); window._map2 && window._map2.invalidateSize(); }, 50);
+    setTimeout(() => Object.values(maps).forEach(m => m.invalidateSize()), 60);
   });
 });
 
-document.getElementById('playBtn').addEventListener('click', () => sim.playing ? pause() : play());
-document.getElementById('resetBtn').addEventListener('click', () => { pause(); loadStrategy(document.getElementById('strategySelect').value); });
-document.getElementById('strategySelect').addEventListener('change', e => { pause(); loadStrategy(e.target.value); });
-document.getElementById('speedSelect').addEventListener('change', () => { if (sim.playing) { pause(); play(); } });
+document.getElementById('playBtn').addEventListener('click', () => sim.playing ? pauseSim() : playSim());
+document.getElementById('resetBtn').addEventListener('click', () => { pauseSim(); loadStrategy(document.getElementById('strategySelect').value); });
+document.getElementById('strategySelect').addEventListener('change', e => { pauseSim(); loadStrategy(e.target.value); });
+document.getElementById('speedSelect').addEventListener('change', () => { if (sim.playing) { pauseSim(); playSim(); } });
 document.getElementById('timeline').addEventListener('input', e => {
-  pause();
+  pauseSim();
   const target = +e.target.value;
   loadStrategy(document.getElementById('strategySelect').value);
   while (sim.idx < target) stepForward();
 });
 
-initSimple();
-initHoodDemand();
-initHoodSim();
+document.getElementById('raceBtn').addEventListener('click', () => race.playing ? pauseRace() : playRace());
+document.getElementById('raceReset').addEventListener('click', resetRace);
+document.getElementById('raceSpeed').addEventListener('change', () => { if (race.playing) { pauseRace(); playRace(); } });
+document.getElementById('raceHead').addEventListener('click', e => {
+  if (e.target.closest('.controls')) return;
+  const d = document.getElementById('raceDock');
+  d.classList.toggle('collapsed');
+  document.getElementById('raceChev').textContent = d.classList.contains('collapsed') ? '▴ expand' : '▾ collapse';
+  setTimeout(() => { Object.values(maps).forEach(m => m.invalidateSize()); if (B) drawRaceChart(race.i/B.race.static_events.length); }, 200);
+});
+
+const dz = document.getElementById('dropZone'), fi = document.getElementById('fileInput');
+dz.addEventListener('click', () => fi.click());
+fi.addEventListener('change', e => { if (e.target.files[0]) onCadFile(e.target.files[0]); });
+['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('over'); }));
+dz.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) onCadFile(f); });
+document.getElementById('runBtn').addEventListener('click', runCadPipeline);
+document.getElementById('clearBtn').addEventListener('click', () => {
+  CAD.rows = null; CAD.headers = null;
+  document.getElementById('mappingWrap').style.display = 'none';
+  document.getElementById('runWrap').style.display = 'none';
+  document.getElementById('uploadResults').style.display = 'none';
+  document.getElementById('uploadLog').style.display = 'none';
+  document.getElementById('uploadLog').textContent = '';
+  [1,2,3,4].forEach(n => setStep(n,''));
+  fi.value = '';
+});
+
+window.addEventListener('resize', () => { if (B) drawRaceChart(race.i / B.race.static_events.length); });
+
+initCities();
 </script>
 </body>
 </html>

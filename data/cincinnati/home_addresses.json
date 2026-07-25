@@ -1,0 +1,162 @@
+[
+  {
+    "lat": 39.12940547956285,
+    "lng": -84.49748547701863,
+    "zone_id": 10,
+    "display_name": "Medical Education & Resource Center, 620, Oak Street, Avondale, Cincinnati, Hamilton County, Ohio, 45206, United States",
+    "street": "620 Oak Street",
+    "neighborhood": "Avondale"
+  },
+  {
+    "lat": 39.108520331992544,
+    "lng": -84.59017338655462,
+    "zone_id": 1,
+    "display_name": "823, Kreis Lane, West Price Hill, Cincinnati, Hamilton County, Ohio, 45205, United States",
+    "street": "823 Kreis Lane",
+    "neighborhood": "West Price Hill"
+  },
+  {
+    "lat": 39.18866149295743,
+    "lng": -84.46363908522727,
+    "zone_id": 3,
+    "display_name": "Reading Road, Bond Hill, Cincinnati, Hamilton County, Ohio, 45241, United States",
+    "street": "Reading Road",
+    "neighborhood": "Bond Hill"
+  },
+  {
+    "lat": 39.13722938310068,
+    "lng": -84.60504752631579,
+    "zone_id": 9,
+    "display_name": "2925, Boudinot Avenue, Westwood, Cincinnati, Hamilton County, Ohio, 46211, United States",
+    "street": "2925 Boudinot Avenue",
+    "neighborhood": "Westwood"
+  },
+  {
+    "lat": 39.14212624590076,
+    "lng": -84.52883842513863,
+    "zone_id": 5,
+    "display_name": "603, Terrace Avenue, Clifton Business District, Clifton, Cincinnati, Hamilton County, Ohio, 45220, United States",
+    "street": "603 Terrace Avenue",
+    "neighborhood": "Clifton"
+  },
+  {
+    "lat": 39.114682823737354,
+    "lng": -84.5233551070529,
+    "zone_id": 19,
+    "display_name": "Central Fabricators Inc., 408, Poplar Street, Brighton, West End, Cincinnati, Hamilton County, Ohio, 45214, United States",
+    "street": "408 Poplar Street",
+    "neighborhood": "Brighton"
+  },
+  {
+    "lat": 39.13717693610626,
+    "lng": -84.46846888372093,
+    "zone_id": 2,
+    "display_name": "3312, Bonaparte Avenue, O\u2019Bryonville, Evanston, Cincinnati, Hamilton County, Ohio, 45207, United States",
+    "street": "3312 Bonaparte Avenue",
+    "neighborhood": "O\u2019Bryonville"
+  },
+  {
+    "lat": 39.19548292598562,
+    "lng": -84.5534646925926,
+    "zone_id": 4,
+    "display_name": "5773, Belmont Avenue, College Hill, Cincinnati, Hamilton County, Ohio, 45224, United States",
+    "street": "5773 Belmont Avenue",
+    "neighborhood": "College Hill"
+  },
+  {
+    "lat": 39.158468599266065,
+    "lng": -84.39926466468253,
+    "zone_id": 6,
+    "display_name": "Armada Place, Madison-Stewart Historic District, Madisonville, Cincinnati, Hamilton County, Ohio, 45227, United States",
+    "street": "Armada Place",
+    "neighborhood": "Madison-Stewart Historic District"
+  },
+  {
+    "lat": 39.18547200282213,
+    "lng": -84.51551131767955,
+    "zone_id": 15,
+    "display_name": "Winton Terrace Elementary School, Vassar Court, Winton Terrace, Cincinnati, Hamilton County, Ohio, 45232, United States",
+    "street": "Vassar Court",
+    "neighborhood": "Winton Terrace"
+  },
+  {
+    "lat": 39.17471005076393,
+    "lng": -84.42496916338028,
+    "zone_id": 17,
+    "display_name": "5731, Pandora Avenue, Norwood Heights, Pleasant Ridge, Cincinnati, Hamilton County, Ohio, 45213, United States",
+    "street": "5731 Pandora Avenue",
+    "neighborhood": "Pleasant Ridge"
+  },
+  {
+    "lat": 39.08881729445232,
+    "lng": -84.38997886448598,
+    "zone_id": 8,
+    "display_name": "1917, Sutton Avenue, Mount Washington Business District, Mount Washington, Cincinnati, Anderson Township, Hamilton County, Ohio, 45230, United States",
+    "street": "1917 Sutton Avenue",
+    "neighborhood": "Mount Washington"
+  },
+  {
+    "lat": 39.139218327585866,
+    "lng": -84.5778718554007,
+    "zone_id": 11,
+    "display_name": "2318, Dautel Avenue, Cyclorama Heights, Cincinnati, Hamilton County, Ohio, 45211, United States",
+    "street": "2318 Dautel Avenue",
+    "neighborhood": "Cincinnati"
+  },
+  {
+    "lat": 39.15463220846922,
+    "lng": -84.5514766654479,
+    "zone_id": 13,
+    "display_name": "1878, Dreman Avenue, Cumminsville, South Cumminsville, Cincinnati, Hamilton County, Ohio, 45223, United States",
+    "street": "1878 Dreman Avenue",
+    "neighborhood": "Cumminsville"
+  },
+  {
+    "lat": 39.11255193920224,
+    "lng": -84.56341856293223,
+    "zone_id": 14,
+    "display_name": "Glenway Avenue, Mount Harrison, Cincinnati, Hamilton County, Ohio, 45205, United States",
+    "street": "Glenway Avenue",
+    "neighborhood": "Cincinnati"
+  },
+  {
+    "lat": 39.137478975890545,
+    "lng": -84.43121948338369,
+    "zone_id": 18,
+    "display_name": "3420, Grace Avenue, Faxon Hills, Hyde Park, Cincinnati, Hamilton County, Ohio, 45208, United States",
+    "street": "3420 Grace Avenue",
+    "neighborhood": "Faxon Hills"
+  },
+  {
+    "lat": 39.20833749563492,
+    "lng": -84.48055341887905,
+    "zone_id": 16,
+    "display_name": "Ronald Reagan Cross County Highway, Valleydale, Springfield Township, Hamilton County, Ohio, 45231, United States",
+    "street": "Ronald Reagan Cross County Highway",
+    "neighborhood": ""
+  },
+  {
+    "lat": 39.11446133829507,
+    "lng": -84.69128795588236,
+    "zone_id": 12,
+    "display_name": "6677, Jersey Avenue, Sayler Park, Cincinnati, Hamilton County, Ohio, 45233, United States",
+    "street": "6677 Jersey Avenue",
+    "neighborhood": "Sayler Park"
+  },
+  {
+    "lat": 39.104533820968875,
+    "lng": -84.51205617272727,
+    "zone_id": 0,
+    "display_name": "East 8th Street, Main Street Historic District, Central Business District, Cincinnati, Hamilton County, Ohio, 45210, United States",
+    "street": "East 8th Street",
+    "neighborhood": "Main Street Historic District"
+  },
+  {
+    "lat": 39.149316438231764,
+    "lng": -84.49317495833333,
+    "zone_id": 7,
+    "display_name": "Zion Baptist Church, Glenwood Avenue, North Avondale, Cincinnati, Hamilton County, Ohio, 45229, United States",
+    "street": "Glenwood Avenue",
+    "neighborhood": "North Avondale"
+  }
+]

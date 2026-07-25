@@ -1,0 +1,6 @@
+{
+  "framework": null,
+  "redirects": [
+    { "source": "/", "destination": "/src/simulator_v2.html", "permanent": false }
+  ]
+}

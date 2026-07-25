@@ -186,7 +186,12 @@ def run_simulation(calls: pd.DataFrame, zone_centers: np.ndarray, zz_dur_sec: np
             reposition_idle_dynamic(idle, compliance_table, zone_centers, zz_dur_sec)
 
         if idle:
-            durs = [zc_dur_sec[a.zone_id][i] for a in idle]  # every idle unit sits at a zone post now
+            # Idle units sit at a zone post. The nearest_zone fallback only fires
+            # when a fleet is larger than the candidate-post list (N_AMBULANCES >
+            # K_ZONES), which cannot happen for Seattle's 16 units / 20 posts; it
+            # exists so other cities (Cincinnati: 26 units) reuse this same code.
+            durs = [zc_dur_sec[a.zone_id if a.zone_id is not None
+                               else nearest_zone(a.lat, a.lng, zone_centers)][i] for a in idle]
             best = int(np.argmin(durs))
             chosen = idle[best]
             start_time = t

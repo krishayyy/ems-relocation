@@ -1,0 +1,20 @@
+{
+  "cities": [
+    {
+      "id": "seattle",
+      "name": "Seattle, WA",
+      "short": "Seattle",
+      "blurb": "Seattle Fire Department 911 call log",
+      "n_calls": 14070,
+      "pct_improvement": 17.5
+    },
+    {
+      "id": "cincinnati",
+      "name": "Cincinnati, OH",
+      "short": "Cincinnati",
+      "blurb": "Cincinnati Fire Department CAD export",
+      "n_calls": 10749,
+      "pct_improvement": 15.9
+    }
+  ]
+}

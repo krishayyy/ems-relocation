@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>EMS Predictive Relocation — static vs. dynamic, on real 911 data</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="Compliance-table (MEXCLP) ambulance relocation simulated on real 911 call data with real road routing. Race static vs dynamic dispatch, switch cities, or drop in your own CAD export." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="app">
+
+  <!-- ================= TOP BAR ================= -->
+  <div id="topbar">
+    <div class="brand">
+      <div class="mark">🚑</div>
+      <div>
+        <h1>Predictive EMS Relocation</h1>
+        <div class="sub" id="cityName">Loading…</div>
+      </div>
+    </div>
+
+    <div class="cityswitch">
+      <div class="citychip active" data-city="seattle"><span class="dot"></span>Seattle</div>
+      <div class="citychip" data-city="cincinnati"><span class="dot"></span>Cincinnati</div>
+      <div class="citychip ghost" id="chipUpload">+ Your city</div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-view="vOverview">Overview</div>
+      <div class="tab" data-view="vHood">Under the hood</div>
+      <div class="tab" data-view="vUpload">Bring your CAD data</div>
+    </div>
+  </div>
+
+  <div id="body">
+
+    <!-- ================= OVERVIEW ================= -->
+    <div class="view active" id="vOverview">
+      <div class="sidebar left" style="width:372px">
+        <div class="hero" style="padding:0">
+          <div class="hero-headline">
+            <div class="hero-big num"><span id="heroPct">0</span><span class="unit">% faster</span></div>
+          </div>
+          <div class="hero-sub" id="heroSub" style="max-width:none"></div>
+        </div>
+
+        <div class="card">
+          <div class="label">Average response, same fleet &amp; same calls</div>
+          <div class="vs" style="margin-top:9px">
+            <div class="vs-row">
+              <div class="vs-name s">Static</div>
+              <div class="vs-track"><div class="vs-fill s" id="vsFillS"></div></div>
+              <div class="vs-val num" id="vsValS">—</div>
+            </div>
+            <div class="vs-row">
+              <div class="vs-name d">Dynamic</div>
+              <div class="vs-track"><div class="vs-fill d" id="vsFillD"></div></div>
+              <div class="vs-val num" id="vsValD">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="background:linear-gradient(150deg,rgba(46,230,160,.1),rgba(46,230,160,.02));border-color:rgba(46,230,160,.26)">
+          <div class="label">Ambulance-minutes saved</div>
+          <div class="value num" id="kMinutes" style="color:var(--dynamic);font-size:29px">—</div>
+          <div class="note" id="kHours" style="margin-top:3px"></div>
+        </div>
+
+        <div class="row">
+          <div class="card tight"><div class="label">Within 8-min standard</div><div class="value num" id="kWithin">—</div></div>
+          <div class="card tight"><div class="label">p90 response</div><div class="value num" id="kP90">—</div></div>
+        </div>
+        <div class="row">
+          <div class="card tight"><div class="label">Median response</div><div class="value num" id="kMedian">—</div></div>
+          <div class="card tight"><div class="label">Fleet modelled</div><div class="value num" id="kFleet" style="font-size:14px;margin-top:6px">—</div></div>
+        </div>
+
+        <div class="card tight">
+          <div class="label">Statistical significance</div>
+          <div class="value num" id="kSig" style="font-size:16px;color:var(--dynamic)">—</div>
+          <div class="note" id="kSigNote" style="margin-top:3px"></div>
+        </div>
+
+        <div class="card tight">
+          <div class="label">Data window</div>
+          <div class="value small num" id="kWindow" style="font-size:12px">—</div>
+          <div class="note" id="srcLine" style="margin-top:5px"></div>
+        </div>
+
+        <div class="label" style="margin-top:4px">Where to stage the fleet</div>
+        <div id="postList"></div>
+      </div>
+
+      <div class="mapwrap">
+        <div id="mapOverview" style="position:absolute;inset:0"></div>
+        <div class="maplegend">
+          <div class="lg"><span class="swatch" style="background:#3a1c6e"></span>Low call demand</div>
+          <div class="lg"><span class="swatch" style="background:#7c5cff"></span>Medium</div>
+          <div class="lg"><span class="swatch" style="background:#ff5c9e"></span>High demand</div>
+          <div class="lg"><span class="swatch round" style="background:#7c5cff"></span>Ranked staging post</div>
+        </div>
+        <div class="detail-card" id="postDetail" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- ================= UNDER THE HOOD ================= -->
+    <div class="view" id="vHood">
+      <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+        <div class="subtabs">
+          <div class="subtab active" data-sub="sDemand">Demand &amp; compliance table</div>
+          <div class="subtab" data-sub="sSim">Live simulation</div>
+          <div class="subtab" data-sub="sProof">Proof &amp; limits</div>
+        </div>
+
+        <!-- demand -->
+        <div class="subview active" id="sDemand">
+          <div class="mapwrap"><div id="mapDemand" style="position:absolute;inset:0"></div></div>
+          <div class="sidebar">
+            <div class="card">
+              <div class="label">The model</div>
+              <div class="value small">MEXCLP (Maximum Expected Coverage, Daskin 1983) — the published method real EMS
+                System Status Management runs on. It ranks candidate posts by expected coverage while accounting for the
+                probability that a covering unit is already busy. The output is a <b>compliance table</b>: idle units
+                continuously re-fill it from the top.</div>
+            </div>
+            <div class="row">
+              <div class="card tight"><div class="label">Busy fraction q</div><div class="value num" id="statQ">—</div></div>
+              <div class="card tight"><div class="label">Coverage standard</div><div class="value num" id="statStandard">—</div></div>
+            </div>
+            <div class="card tight" id="forecastCard">
+              <div class="label">Demand forecast (ML, held-out validated)</div>
+              <div class="value small" id="forecastSummary">—</div>
+              <div class="value" id="forecastNext" style="font-size:13px;margin-top:6px"></div>
+            </div>
+            <div class="card" style="max-height:290px;overflow-y:auto">
+              <div class="label" style="margin-bottom:6px">Zones by real call volume + compliance rank</div>
+              <table id="zoneTable">
+                <thead><tr><th></th><th>Zone</th><th>Volume</th><th>Calls</th><th>Rank</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="note foot">
+              <b style="color:var(--muted)">Routing:</b> <span id="routingSource"></span><br /><br />
+              <span id="calibNote"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- live sim -->
+        <div class="subview" id="sSim">
+          <div class="mapwrap"><div id="mapSim" style="position:absolute;inset:0"></div></div>
+          <div class="sidebar">
+            <div class="card controls">
+              <select class="ctl" id="strategySelect">
+                <option value="static">Static (fixed home base)</option>
+                <option value="dynamic">Dynamic (compliance-table restaging)</option>
+              </select>
+              <button class="ctl primary" id="playBtn">▶ Play</button>
+              <button class="ctl" id="resetBtn">↻ Reset</button>
+              <select class="ctl" id="speedSelect">
+                <option value="400">1×</option>
+                <option value="150" selected>3×</option>
+                <option value="50">8×</option>
+                <option value="15">20×</option>
+              </select>
+            </div>
+            <input type="range" id="timeline" min="0" max="100" value="0" />
+            <div class="note" id="simDateLabel"></div>
+            <div class="row">
+              <div class="card tight"><div class="label">Calls handled</div><div class="value num" id="statCalls">0</div></div>
+              <div class="card tight"><div class="label">Avg response so far</div><div class="value num" id="statAvgResp">—</div></div>
+            </div>
+            <div class="row">
+              <div class="card tight"><div class="label">Units busy now</div><div class="value num" id="statBusy">—</div></div>
+              <div class="card tight"><div class="label">Delayed (no idle unit)</div><div class="value num" id="statDelayed">0</div></div>
+            </div>
+            <div class="card tight">
+              <div class="label">Last event</div>
+              <div class="value small" id="lastEvent">—</div>
+            </div>
+            <div class="note foot">Real call arrivals and locations, replayed from the busiest real day in the window.
+              One disclosed assumption: per-call service duration (~50 min average, not present in the source data).</div>
+          </div>
+        </div>
+
+        <!-- proof -->
+        <div class="subview" id="sProof" style="overflow-y:auto;padding:16px">
+          <div style="flex:1;display:flex;flex-direction:column;gap:12px;max-width:1060px">
+            <div class="grid2">
+              <div class="chart-card">
+                <div class="chart-head"><span class="t">Response-time distribution</span><span class="s" id="chartHistSub"></span></div>
+                <div id="chartHist"></div>
+                <div class="chart-legend">
+                  <span><span class="swatch" style="background:#ff6b57"></span>Static</span>
+                  <span><span class="swatch" style="background:#2ee6a0"></span>Dynamic</span>
+                  <span style="color:var(--dim)">The whole curve shifts left — not just the mean.</span>
+                </div>
+              </div>
+              <div class="chart-card">
+                <div class="chart-head"><span class="t">Cumulative average response</span><span class="s">over the full call stream</span></div>
+                <div id="chartCum"></div>
+                <div class="chart-legend">
+                  <span><span class="swatch" style="background:#ff6b57"></span>Static</span>
+                  <span><span class="swatch" style="background:#2ee6a0"></span>Dynamic</span>
+                  <span style="color:var(--dim)">The gap opens early and holds — not a lucky tail.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid2">
+              <div class="chart-card">
+                <div class="chart-head"><span class="t">Ambulance-minutes returned to the city</span></div>
+                <div id="chartSaved"></div>
+              </div>
+              <div class="card" id="realCheck">
+                <div class="label">Realism check against measured performance</div>
+                <div class="value small" id="realCheckBody"></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="label">What this does <i>not</i> claim</div>
+              <div class="value small">
+                This is a simulation on real data, not a fielded deployment. The fleet size and post locations are the
+                model's, not any real agency's, so the comparison is <b>static vs. dynamic under identical conditions</b> —
+                not model vs. a real department. Per-call service time (~50 min) is a disclosed assumption, applied
+                identically to both strategies so it cannot bias the comparison. MEXCLP is a 1983 published method; the
+                contribution here is the end-to-end pipeline on real CAD data with real road routing, and the honest
+                measurement of what it buys.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= UPLOAD ================= -->
+    <div class="view" id="vUpload">
+      <div class="upload-wrap">
+        <div class="upload-inner">
+          <div class="upload-hero">
+            <h2>Point the model at any city</h2>
+            <p>The model is not hard-coded to Seattle or Cincinnati. Drop in a CAD / 911 export with a latitude,
+              a longitude and a timestamp column, and the whole pipeline re-derives itself in your browser: demand
+              zones, fleet size, the MEXCLP compliance table, both simulations and the significance test. No upload,
+              no server — the file never leaves this machine.</p>
+          </div>
+
+          <div class="dropzone" id="dropzone">
+            <div class="big">📥</div>
+            <h3>Drop a CAD export here, or click to choose a file</h3>
+            <p>CSV with latitude / longitude / timestamp columns (column names are auto-detected).<br />
+              Try <code>data/cincinnati/calls_60d.csv</code> from this repo to watch it rebuild Cincinnati from scratch.</p>
+            <input type="file" id="fileInput" accept=".csv,text/csv" style="display:none" />
+          </div>
+
+          <div class="card err" id="uploadErr" style="display:none">
+            <div class="label" style="color:#ffb3a6">Could not process this file</div>
+            <div class="value small" id="uploadErrMsg" style="color:#ffb3a6"></div>
+          </div>
+
+          <div id="pipelineWrap" style="display:none">
+            <div class="label" style="margin-bottom:8px">Running the same pipeline the committed cities ran</div>
+            <div class="pipeline" id="pipeline"></div>
+          </div>
+
+          <div class="card" id="uploadResult" style="display:none;border-color:rgba(46,230,160,.3);background:linear-gradient(150deg,rgba(46,230,160,.09),rgba(46,230,160,.02))">
+            <div class="label">Result for <span id="urCity"></span></div>
+            <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-top:6px">
+              <div class="hero-big num" style="font-size:44px"><span id="urPct">—</span></div>
+              <div class="grid3" style="flex:1;min-width:340px">
+                <div class="card tight"><div class="label">Static</div><div class="value num static" id="urStatic">—</div></div>
+                <div class="card tight"><div class="label">Dynamic</div><div class="value num dynamic" id="urDynamic">—</div></div>
+                <div class="card tight"><div class="label">Significance</div><div class="value num" id="urP" style="font-size:15px;margin-top:6px">—</div></div>
+              </div>
+            </div>
+            <div class="note" style="margin-top:9px"><span id="urCalls"></span> real calls · <span id="urFleet"></span> ·
+              browser run uses the OSRM-measured speed estimate rather than a live routing matrix; re-run
+              <code>src/precompute_routing.py</code> for this city to replace the estimate with real road routing.</div>
+            <button class="ctl primary" id="urOpen" style="margin-top:11px">Open this city in the simulator →</button>
+          </div>
+
+          <div class="note" id="calibLine"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ================= RACE DOCK ================= -->
+  <div id="raceDock">
+    <div class="race-head" id="raceHead">
+      <span class="title">Head-to-head</span>
+      <span class="verdict" id="raceVerdict">—</span>
+      <span class="badge violet" id="raceCity">—</span>
+      <span class="badge ok" id="raceDay">—</span>
+      <div class="race-ctl">
+        <select class="ctl" id="raceSpeed">
+          <option value="1">1×</option>
+          <option value="2" selected>2×</option>
+          <option value="4">4×</option>
+        </select>
+        <button class="ctl primary" id="raceBtn">▶ Race</button>
+      </div>
+    </div>
+
+    <div class="race-body">
+      <div class="lanes">
+        <div class="lane">
+          <div class="lane-meta">
+            <span class="lane-tag s">Static</span>
+            <span class="lane-desc">fixed home posts — how most agencies dispatch today</span>
+            <span class="lane-stat num" id="laneStatS">—</span>
+          </div>
+          <div class="track" id="raceTrackS">
+            <div class="track-fill s" id="raceFillS"></div>
+            <div class="runner" id="runnerS">🚑</div>
+          </div>
+        </div>
+        <div class="lane">
+          <div class="lane-meta">
+            <span class="lane-tag d">Dynamic</span>
+            <span class="lane-desc">idle units continuously re-fill the compliance table</span>
+            <span class="lane-stat num" id="laneStatD">—</span>
+          </div>
+          <div class="track" id="raceTrackD">
+            <div class="track-fill d" id="raceFillD"></div>
+            <div class="runner" id="runnerD">🚑</div>
+          </div>
+        </div>
+        <div class="note" style="text-align:center">Both lanes clear the <b>same real calls in the same order</b> off one
+          shared clock — a lane advances by spending its own response minutes, so less time-to-patient means further down the track.</div>
+      </div>
+
+      <div class="race-side">
+        <div class="saved-box">
+          <div class="label" style="color:rgba(46,230,160,.8)">Minutes saved so far</div>
+          <div class="big num"><span id="raceSaved">0</span></div>
+          <div class="cap" id="raceAhead">—</div>
+        </div>
+        <div>
+          <div class="winbar">
+            <div class="w-d" id="winD" style="width:0"></div>
+            <div class="w-s" id="winS" style="width:0"></div>
+            <div class="w-t" id="winT" style="width:0"></div>
+          </div>
+          <div class="note num" id="winLabel" style="margin-top:6px">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="cad_engine.js"></script>
+<script src="charts.js"></script>
+<script src="race.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
