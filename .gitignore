@@ -11,3 +11,4 @@ data/cincinnati/cincinnati_cad_raw.csv
 
 # Montgomery County raw calls - 123 MB, over GitHub's 100 MB file limit. Local only.
 911.csv
+HANDOFF.md
