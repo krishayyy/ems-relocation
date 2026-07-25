@@ -131,6 +131,11 @@
               <div class="card"><div class="label">Busy fraction (q)</div><div class="value" id="statQ">-</div></div>
               <div class="card"><div class="label">Coverage standard</div><div class="value" id="statStandard">-</div></div>
             </div>
+            <div class="card">
+              <div class="label">Demand forecast (ML, real data, held-out validated)</div>
+              <div class="value small" id="forecastSummary">-</div>
+              <div class="value" id="forecastNextHour" style="margin-top:6px;">-</div>
+            </div>
             <div id="zoneTableWrap" class="card" style="max-height:300px; overflow-y:auto;">
               <div class="label">Zones (real call counts) + compliance rank</div>
               <table id="zoneTable"><thead><tr><th></th><th>Zone</th><th>Calls</th><th>Rank</th></tr></thead><tbody></tbody></table>
@@ -268,6 +273,21 @@ async function initHoodDemand() {
 
   document.getElementById('statQ').textContent = data.busy_fraction_q;
   document.getElementById('statStandard').textContent = data.response_standard_min + ' min';
+
+  try {
+    const fc = await (await fetch('../data/demand_forecast.json')).json();
+    const m = fc.holdout_metrics;
+    document.getElementById('forecastSummary').textContent =
+      `Gradient-boosted regressor, trained on ${fc.n_train_hours.toLocaleString()} real hourly ` +
+      `call-volume observations. Held out the last ${fc.n_test_hours} real hours (never seen in ` +
+      `training): MAE ${m.model_mae} calls/hr vs. ${m.naive_baseline_mae} for a naive historical-average ` +
+      `baseline (${m.mae_improvement_pct_vs_naive > 0 ? '+' : ''}${m.mae_improvement_pct_vs_naive}% improvement).`;
+    const next = fc.next_24h_forecast[0];
+    document.getElementById('forecastNextHour').innerHTML =
+      `Next hour (${next.datetime.slice(11,16)}): <b>${next.predicted_calls.toFixed(1)} predicted calls</b>`;
+  } catch (e) {
+    document.getElementById('forecastSummary').textContent = 'Run src/forecast_demand.py to generate.';
+  }
 
   const zones = data.all_zone_centers;
   const maxW = Math.max(...zones.map(z => z.weight));
