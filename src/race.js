@@ -50,7 +50,7 @@
     state.dayPct = accS ? (accS - accD) / accS * 100 : 0;
 
     $('raceVerdict').innerHTML =
-      'Same <b style="color:var(--text)">' + fmt(n) + '</b> real calls from ' + bundle.race.date +
+      'Same <b style="color:var(--foreground)">' + fmt(n) + '</b> real calls from ' + bundle.race.date +
       ' &middot; dynamic wins by <b>' + state.dayPct.toFixed(1) + '%</b> <span style="color:var(--muted);font-weight:400;">(this day; 60-day city average is ' + bundle.summary.pct_improvement + '%)</span>';
     $('raceDay').textContent = bundle.race.date;
     $('raceCity').textContent = bundle.short;
@@ -138,10 +138,10 @@
     state.playing = false;
     state.last = 0;
     clearInterval(state.raf);
-    $('raceBtn').textContent = '↻ Replay';
+    $('raceBtn').innerHTML = Icons.svg('replay', 13) + 'Replay';
     $('raceAhead').textContent = 'Dynamic cleared the day ' +
       fmt(state.cumS[state.n - 1] - state.cumD[state.n - 1], 1) + ' min sooner';
-    $('raceVerdict').innerHTML = 'Dynamic cleared the same <b style="color:var(--text)">' + fmt(state.n) +
+    $('raceVerdict').innerHTML = 'Dynamic cleared the same <b style="color:var(--foreground)">' + fmt(state.n) +
       '</b> calls with <b>' + state.dayPct.toFixed(1) + '%</b> less time-to-patient ' +
       '<span style="color:var(--muted);font-weight:400;">(this day; 60-day city average is ' +
       state.bundle.summary.pct_improvement + '%)</span>';
@@ -149,7 +149,7 @@
 
   function reset() {
     state.clock = 0; state.last = 0;
-    $('raceBtn').textContent = '▶ Race';
+    $('raceBtn').innerHTML = Icons.svg('play', 13) + 'Race';
   }
 
   function play() {
@@ -157,7 +157,7 @@
     if (state.clock >= state.total) reset();
     state.playing = true;
     state.last = 0;
-    $('raceBtn').textContent = '❚❚ Pause';
+    $('raceBtn').innerHTML = Icons.svg('pause', 13) + 'Pause';
     clearInterval(state.raf);
     state.raf = setInterval(tick, 16);
   }
@@ -166,7 +166,11 @@
     state.playing = false;
     state.last = 0;
     clearInterval(state.raf);
-    if ($('raceBtn')) $('raceBtn').textContent = state.clock >= state.total ? '↻ Replay' : '▶ Race';
+    if ($('raceBtn')) {
+      $('raceBtn').innerHTML = state.clock >= state.total
+        ? Icons.svg('replay', 13) + 'Replay'
+        : Icons.svg('play', 13) + 'Race';
+    }
   }
 
   function init() {
