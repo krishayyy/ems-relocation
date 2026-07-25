@@ -141,7 +141,12 @@
         <!-- demand -->
         <div class="subview active" id="sDemand">
           <div class="mapwrap"><div id="mapDemand" style="position:absolute;inset:0"></div></div>
-          <div class="sidebar">
+          <div class="sidebar split">
+            <div class="sb-scroll">
+            <div class="row">
+              <div class="card tight"><div class="label"><i data-icon="sliders" data-size="13"></i>Busy fraction q</div><div class="value num" id="statQ">—</div></div>
+              <div class="card tight"><div class="label"><i data-icon="target" data-size="13"></i>Coverage standard</div><div class="value num" id="statStandard">—</div></div>
+            </div>
             <div class="card">
               <div class="label"><i data-icon="brain" data-size="13"></i>The model</div>
               <div class="value small">MEXCLP (Maximum Expected Coverage, Daskin 1983) — the published method real EMS
@@ -149,25 +154,25 @@
                 probability that a covering unit is already busy. The output is a <b>compliance table</b>: idle units
                 continuously re-fill it from the top.</div>
             </div>
-            <div class="row">
-              <div class="card tight"><div class="label"><i data-icon="sliders" data-size="13"></i>Busy fraction q</div><div class="value num" id="statQ">—</div></div>
-              <div class="card tight"><div class="label"><i data-icon="target" data-size="13"></i>Coverage standard</div><div class="value num" id="statStandard">—</div></div>
-            </div>
             <div class="card tight" id="forecastCard">
               <div class="label"><i data-icon="activity" data-size="13"></i>Demand forecast (ML, held-out validated)</div>
               <div class="value small" id="forecastSummary">—</div>
               <div class="value" id="forecastNext" style="font-size:13px;margin-top:6px"></div>
             </div>
-            <div class="card" style="max-height:290px;overflow-y:auto">
-              <div class="label" style="margin-bottom:6px">Zones by real call volume + compliance rank</div>
-              <table id="zoneTable">
-                <thead><tr><th></th><th>Zone</th><th>Volume</th><th>Calls</th><th>Rank</th></tr></thead>
-                <tbody></tbody>
-              </table>
-            </div>
             <div class="note foot">
               <b style="color:var(--muted)">Routing:</b> <span id="routingSource"></span><br /><br />
               <span id="calibNote"></span>
+            </div>
+            </div>
+
+            <div class="sb-pinned zone-pane">
+              <div class="label zone-head"><i data-icon="chart" data-size="13"></i>Zones by call volume &amp; compliance rank</div>
+              <div class="zone-scroll">
+                <table id="zoneTable">
+                  <thead><tr><th></th><th>Zone</th><th>Volume</th><th>Calls</th><th>Rank</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>

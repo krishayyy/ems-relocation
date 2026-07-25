@@ -164,7 +164,7 @@ button .ico, .citychip .ico, .tab .ico { vertical-align: -0.18em; }
    staging list is always visible rather than buried under the stat cards. */
 .sidebar.split { overflow: hidden; }
 .sidebar.split .sb-scroll {
-  flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 11px;
+  flex: 1 1 0; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 11px;
   margin: 0 -16px; padding: 0 16px 10px;
   /* fade the cut edge so a clipped card reads as "scroll for more" */
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent 100%);
@@ -174,6 +174,16 @@ button .ico, .citychip .ico, .tab .ico { vertical-align: -0.18em; }
   flex: 0 0 auto; display: flex; flex-direction: column; min-height: 0;
   max-height: 34%; margin: 0 -16px -16px; border-top: 1px solid var(--border);
 }
+/* The table has a fixed, knowable height (20 rows); the prose above can scroll
+   to any size. So the pane takes its content height and the prose absorbs the
+   remainder -- that is what lets all 20 rows show when the column can afford
+   them, instead of both regions splitting the slack and the table ending one
+   row short. min-height keeps it usable on short screens, max-height stops it
+   from squeezing the prose to nothing on tall ones. */
+.sidebar.split .sb-pinned.zone-pane {
+  flex: 0 0 auto; max-height: 72%; min-height: 190px;
+}
+.sidebar.split .sb-pinned.zone-pane .zone-scroll { flex: 0 1 auto; }
 .sidebar.left { border-left: none; border-right: 1px solid var(--border); }
 .mapwrap { flex: 1; position: relative; min-width: 0; background: var(--surface-2); }
 .leaflet-container { background: var(--surface-2); }
@@ -215,6 +225,9 @@ button .ico, .citychip .ico, .tab .ico { vertical-align: -0.18em; }
 .note { font-size: 11px; color: var(--dim); line-height: 1.6; }
 .note a, .value a { color: var(--primary); }
 .sidebar .note.foot { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border); }
+/* With a flex-growing table in the column, the footnote must not also claim
+   the slack, or the two fight and the table loses. */
+#sDemand .sidebar .note.foot { margin-top: 0; flex-shrink: 0; }
 
 /* Delta: static value -> dynamic value, the app's most repeated figure. */
 .delta { display: inline-flex; align-items: center; gap: 6px; }
@@ -302,6 +315,25 @@ button .ico, .citychip .ico, .tab .ico { vertical-align: -0.18em; }
 .maplegend .lg { display: flex; align-items: center; gap: 7px; }
 .swatch { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
 .swatch.round { border-radius: 50%; }
+
+/* The zone table carries this panel's actual evidence, so it claims the
+   sidebar's leftover height instead of being squeezed to nothing by the
+   explanatory cards above it. Header stays put while the rows scroll. */
+.zone-pane { display: flex; flex-direction: column; }
+.zone-head { padding: 10px 16px 3px; background: var(--surface); flex-shrink: 0; white-space: nowrap; }
+.zone-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 16px 10px; }
+/* Compact rows: all 20 zones fit without scrolling on a normal laptop. */
+.zone-scroll table { font-size: 10px; }
+.zone-scroll th { font-size: 8.5px; padding: 3px 4px; }
+.zone-scroll td { padding: 2.5px 4px; line-height: 1.35; }
+.zone-scroll .tbar { height: 4px; }
+.zone-scroll .swatch { width: 7px; height: 7px; }
+.zone-scroll thead th {
+  position: sticky; top: 0; z-index: 1; background: var(--card);
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+.zone-scroll table { border-collapse: separate; border-spacing: 0; }
+.zone-scroll th, .zone-scroll td { border-bottom: 1px solid var(--border); }
 
 /* --------------------------------------------------------------- tables */
 table { width: 100%; border-collapse: collapse; font-size: 11px; }
