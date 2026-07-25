@@ -1,0 +1,121 @@
+{
+  "model": "GradientBoostingRegressor (scikit-learn), n_estimators=200, max_depth=3",
+  "training_window": "2022-07-09 16:00:00 to 2026-06-25 05:00:00",
+  "holdout_window": "2026-06-25 06:00:00 to 2026-07-25 05:00:00",
+  "n_train_hours": 34718,
+  "n_test_hours": 720,
+  "feature_importances": {
+    "hour": 0.7843,
+    "dow": 0.0248,
+    "is_weekend": 0.0158,
+    "lag_1h": 0.1008,
+    "lag_24h": 0.0304,
+    "lag_168h": 0.0439
+  },
+  "holdout_metrics": {
+    "naive_baseline_mae": 2.973,
+    "naive_baseline_rmse": 3.752,
+    "model_mae": 2.901,
+    "model_rmse": 3.61,
+    "mae_improvement_pct_vs_naive": 2.4
+  },
+  "next_24h_forecast": [
+    {
+      "datetime": "2026-07-25 06:00:00",
+      "predicted_calls": 7.43
+    },
+    {
+      "datetime": "2026-07-25 07:00:00",
+      "predicted_calls": 8.53
+    },
+    {
+      "datetime": "2026-07-25 08:00:00",
+      "predicted_calls": 9.41
+    },
+    {
+      "datetime": "2026-07-25 09:00:00",
+      "predicted_calls": 11.47
+    },
+    {
+      "datetime": "2026-07-25 10:00:00",
+      "predicted_calls": 12.09
+    },
+    {
+      "datetime": "2026-07-25 11:00:00",
+      "predicted_calls": 12.39
+    },
+    {
+      "datetime": "2026-07-25 12:00:00",
+      "predicted_calls": 12.59
+    },
+    {
+      "datetime": "2026-07-25 13:00:00",
+      "predicted_calls": 12.68
+    },
+    {
+      "datetime": "2026-07-25 14:00:00",
+      "predicted_calls": 12.97
+    },
+    {
+      "datetime": "2026-07-25 15:00:00",
+      "predicted_calls": 12.41
+    },
+    {
+      "datetime": "2026-07-25 16:00:00",
+      "predicted_calls": 12.26
+    },
+    {
+      "datetime": "2026-07-25 17:00:00",
+      "predicted_calls": 12.52
+    },
+    {
+      "datetime": "2026-07-25 18:00:00",
+      "predicted_calls": 11.66
+    },
+    {
+      "datetime": "2026-07-25 19:00:00",
+      "predicted_calls": 12.25
+    },
+    {
+      "datetime": "2026-07-25 20:00:00",
+      "predicted_calls": 12.4
+    },
+    {
+      "datetime": "2026-07-25 21:00:00",
+      "predicted_calls": 11.9
+    },
+    {
+      "datetime": "2026-07-25 22:00:00",
+      "predicted_calls": 10.22
+    },
+    {
+      "datetime": "2026-07-25 23:00:00",
+      "predicted_calls": 11.05
+    },
+    {
+      "datetime": "2026-07-26 00:00:00",
+      "predicted_calls": 10.54
+    },
+    {
+      "datetime": "2026-07-26 01:00:00",
+      "predicted_calls": 9.7
+    },
+    {
+      "datetime": "2026-07-26 02:00:00",
+      "predicted_calls": 8.32
+    },
+    {
+      "datetime": "2026-07-26 03:00:00",
+      "predicted_calls": 8.27
+    },
+    {
+      "datetime": "2026-07-26 04:00:00",
+      "predicted_calls": 6.96
+    },
+    {
+      "datetime": "2026-07-26 05:00:00",
+      "predicted_calls": 6.81
+    }
+  ],
+  "disclosed_scope": "Forecasts CITYWIDE call VOLUME per hour, not per-zone location -- consistent with the finding in HANDOFF.md Sec 2.3 that call LOCATION doesn't meaningfully shift by time, only call VOLUME does. Intended use: surge staffing (how many units should be active right now), not zone repositioning (that's MEXCLP's job, see simulate_dynamic.py)."
+}

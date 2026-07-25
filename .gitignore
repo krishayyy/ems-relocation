@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 .DS_Store
 .claude-flow/
+data/cincinnati/*.csv
 
 # Montgomery County raw calls - 123 MB, over GitHub's 100 MB file limit. Local only.
 911.csv
