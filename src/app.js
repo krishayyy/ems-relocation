@@ -12,10 +12,24 @@
     return Number(n).toLocaleString(undefined, { minimumFractionDigits: d || 0, maximumFractionDigits: d === undefined ? 0 : d });
   }
 
+  /** static value -> dynamic value, the app's most repeated figure. */
+  function delta(from, to) {
+    return '<span class="delta"><span class="from">' + from + '</span>' +
+      Icons.svg('arrowRight', 11) + '<span class="to">' + to + '</span></span>';
+  }
+
   /* ---------------------------------------------------------------- maps */
 
+  /* Read a CSS custom property so JS-drawn things (map tiles, SVG charts,
+     Leaflet markers) follow the same tokens as the stylesheet. */
+  function token(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+  function isLight() { return document.documentElement.getAttribute('data-theme') === 'light'; }
+
   function tiles() {
-    return L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    var style = isLight() ? 'light_all' : 'dark_all';
+    return L.tileLayer('https://{s}.basemaps.cartocdn.com/' + style + '/{z}/{x}/{y}{r}.png',
       { attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19 });
   }
 
@@ -33,12 +47,25 @@
     return { map: state.maps[id], layer: state.layers[id] };
   }
 
+  // Sequential demand ramp in the accent hue: cool slate -> amber -> hot red.
+  // Two value sets so the ramp keeps contrast against either basemap.
+  var RAMP_DARK = [[96, 110, 133], [245, 165, 36], [240, 68, 56]];
+  var RAMP_LIGHT = [[130, 146, 166], [217, 119, 6], [185, 28, 28]];
+
   function demandColor(w, maxW) {
     var t = Math.min(1, w / maxW);
-    var stops = [[58, 28, 110], [124, 92, 255], [255, 92, 158]];
+    var stops = isLight() ? RAMP_LIGHT : RAMP_DARK;
     var seg = t < 0.5 ? 0 : 1, lt = t < 0.5 ? t / 0.5 : (t - 0.5) / 0.5;
     var c = stops[seg].map(function (v, i) { return Math.round(v + (stops[seg + 1][i] - v) * lt); });
     return 'rgb(' + c.join(',') + ')';
+  }
+
+  function paintLegend() {
+    var stops = isLight() ? RAMP_LIGHT : RAMP_DARK;
+    [['lgLow', 0], ['lgMid', 1], ['lgHigh', 2]].forEach(function (p) {
+      var node = $(p[0]);
+      if (node) node.style.background = 'rgb(' + stops[p[1]].join(',') + ')';
+    });
   }
 
   function drawDemand(layer, zones, scale, opacity) {
@@ -53,11 +80,11 @@
   }
 
   function postMarker(rank, opts) {
-    var size = opts && opts.small ? 15 : 25;
-    var html = opts && opts.small
-      ? '<div style="background:#2ee6a0;width:15px;height:15px;border-radius:50%;box-shadow:0 0 0 2px #06070a,0 0 10px rgba(46,230,160,.7)"></div>'
-      : '<div style="background:linear-gradient(140deg,#7c5cff,#6a7cff);color:#fff;width:25px;height:25px;border-radius:9px;' +
-        'display:grid;place-items:center;font-weight:700;font-size:11px;box-shadow:0 0 0 2px rgba(255,255,255,.9),0 3px 10px rgba(0,0,0,.6)">' + rank + '</div>';
+    var small = opts && opts.small;
+    var size = small ? 13 : 25;
+    var html = small
+      ? '<div class="post-pin small"></div>'
+      : '<div class="post-pin num">' + rank + '</div>';
     return L.divIcon({ className: '', html: html, iconSize: [size, size] });
   }
 
@@ -81,22 +108,20 @@
 
     $('kMinutes').textContent = fmt(s.minutes_saved_total, 0);
     $('kHours').textContent = fmt(s.minutes_saved_total / 60, 0) + ' ambulance-hours returned over ' + s.sim_days + ' days';
-    $('kWithin').innerHTML = s.pct_within_standard_static.toFixed(1) + '<span style="color:var(--dim)"> → </span>' +
-      '<span style="color:var(--dynamic)">' + s.pct_within_standard_dynamic.toFixed(1) + '%</span>';
-    $('kP90').innerHTML = s.p90_response_min_static.toFixed(1) + '<span style="color:var(--dim)"> → </span>' +
-      '<span style="color:var(--dynamic)">' + s.p90_response_min_dynamic.toFixed(1) + '</span>';
-    $('kMedian').innerHTML = s.median_response_min_static.toFixed(2) + '<span style="color:var(--dim)"> → </span>' +
-      '<span style="color:var(--dynamic)">' + s.median_response_min_dynamic.toFixed(2) + '</span>';
+    $('kWithin').innerHTML = delta(s.pct_within_standard_static.toFixed(1), s.pct_within_standard_dynamic.toFixed(1) + '%');
+    $('kP90').innerHTML = delta(s.p90_response_min_static.toFixed(1), s.p90_response_min_dynamic.toFixed(1));
+    $('kMedian').innerHTML = delta(s.median_response_min_static.toFixed(2), s.median_response_min_dynamic.toFixed(2));
     $('kSig').textContent = s.wilcoxon_p_value < 1e-12
       ? 'p < 10^' + Math.ceil(Math.log10(s.wilcoxon_p_value))
       : 'p = ' + s.wilcoxon_p_value.toExponential(1);
     $('kSigNote').textContent = 'Wilcoxon signed-rank on paired per-call response times' +
       (b.uploaded ? ' (normal approximation, n=' + fmt(s.n_calls) + ')' : '');
     $('kFleet').textContent = fmt(s.n_ambulances) + ' units · ' + s.k_zones + ' posts';
-    $('kWindow').textContent = String(s.window_start).slice(0, 10) + ' → ' + String(s.window_end).slice(0, 10);
+    $('kWindow').innerHTML = '<span class="delta"><span class="from">' + String(s.window_start).slice(0, 10) +
+      '</span>' + Icons.svg('arrowRight', 11) + '<span>' + String(s.window_end).slice(0, 10) + '</span></span>';
 
     $('srcLine').innerHTML = b.source_url
-      ? b.blurb + ' · <a href="' + b.source_url + '" target="_blank" rel="noopener" style="color:var(--accent2)">open data source</a>'
+      ? b.blurb + ' · <a href="' + b.source_url + '" target="_blank" rel="noopener" >open data source</a>'
       : b.blurb;
 
     drawDemand(m.layer, b.zones, 7200, 0.22);
@@ -153,7 +178,7 @@
       var box = $('postDetail');
       box.style.display = 'block';
       box.innerHTML =
-        '<div style="display:flex;align-items:center;gap:9px"><div class="rank-badge num" style="background:linear-gradient(140deg,#7c5cff,#6a7cff);color:#fff;border-color:transparent">' + (rank + 1) + '</div>' +
+        '<div style="display:flex;align-items:center;gap:9px"><div class="rank-badge num" style="background:var(--primary);color:var(--primary-fg);border-color:var(--primary)">' + (rank + 1) + '</div>' +
         '<h3>' + (p.street || 'Staging post') + '</h3></div>' +
         '<div class="addr">' + (p.display_name || (p.lat.toFixed(5) + ', ' + p.lng.toFixed(5))) + '</div>' +
         '<div class="mini-row">' +
@@ -292,7 +317,7 @@
     var units = [];
     b.home_bases.forEach(function (h) {
       units.push(L.marker([h.lat, h.lng], {
-        icon: L.divIcon({ className: '', html: '<div class="amb-icon">🚑</div>', iconSize: [21, 21] })
+        icon: L.divIcon({ className: '', html: '<div class="amb-icon">' + Icons.svg('ambulance', 13) + '</div>', iconSize: [22, 22] })
       }).addTo(m));
     });
     state.sim = { events: events, idx: 0, playing: false, timer: null, units: units,
@@ -300,7 +325,7 @@
     $('timeline').max = Math.max(1, events.length - 1);
     $('timeline').value = 0;
     $('lastEvent').textContent = '—';
-    $('playBtn').textContent = '▶ Play';
+    $('playBtn').innerHTML = Icons.svg('play', 13) + 'Play';
     updateSimStats();
   }
 
@@ -311,8 +336,9 @@
     var unit = sim.units[ev.ambulance_id];
     if (unit) unit.setLatLng([ev.to_lat, ev.to_lng]);
 
+    var flash = token('--static');
     var dot = L.circleMarker([ev.call_lat, ev.call_lng],
-      { radius: 6, color: '#ff5c5c', fillColor: '#ff5c5c', fillOpacity: 0.9, weight: 1 }).addTo(map);
+      { radius: 6, color: flash, fillColor: flash, fillOpacity: 0.9, weight: 1 }).addTo(map);
     setTimeout(function () { map.removeLayer(dot); }, 900);
 
     sim.respTotal += ev.response_min;
@@ -342,14 +368,14 @@
     var sim = state.sim;
     if (!sim || sim.playing) return;
     sim.playing = true;
-    $('playBtn').textContent = '❚❚ Pause';
+    $('playBtn').innerHTML = Icons.svg('pause', 13) + 'Pause';
     sim.timer = setInterval(stepForward, +$('speedSelect').value);
   }
   function pauseSim() {
     var sim = state.sim;
     if (!sim) return;
     sim.playing = false;
-    $('playBtn').textContent = '▶ Play';
+    $('playBtn').innerHTML = Icons.svg('play', 13) + 'Play';
     clearInterval(sim.timer);
   }
 
@@ -410,7 +436,7 @@
       var d = document.createElement('div');
       d.className = 'pstep';
       d.id = 'step-' + s[0];
-      d.innerHTML = '<div class="icon">•</div><div><div class="ptitle">' + s[1] +
+      d.innerHTML = '<div class="icon">' + Icons.svg('dot', 10) + '</div><div><div class="ptitle">' + s[1] +
         '</div><div class="pdesc">' + s[2] + '</div></div><div class="presult"></div>';
       wrap.appendChild(d);
     });
@@ -421,7 +447,7 @@
     if (!node) return;
     node.classList.remove('active');
     node.classList.add('done');
-    node.querySelector('.icon').textContent = '✓';
+    node.querySelector('.icon').innerHTML = Icons.svg('check', 13);
     var txt = '';
     switch (key) {
       case 'parse': txt = fmt(detail.rows) + ' rows × ' + detail.columns + ' cols'; break;
@@ -511,8 +537,43 @@
     }, 60);
   }
 
+  /* ------------------------------------------------------------- theming */
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('ems-theme', theme);
+    paintLegend();
+    // Basemap tiles and the demand overlay are colour-baked at draw time, so
+    // both have to be rebuilt -- swapping CSS alone would leave a dark basemap
+    // under a light UI.
+    Object.keys(state.maps).forEach(function (id) {
+      var map = state.maps[id];
+      map.eachLayer(function (l) { if (l instanceof L.TileLayer) map.removeLayer(l); });
+      tiles().addTo(map);
+    });
+    if (state.current) {
+      [renderOverview, renderHood, renderSim].forEach(function (fn) {
+        try { fn(state.current); } catch (e) { console.error(fn.name + ' failed:', e); }
+      });
+    }
+  }
+
+  function redrawCharts() {
+    var b = state.current;
+    if (!b) return;
+    Charts.histogram($('chartHist'), b.hist, b.summary.response_standard_min);
+    Charts.cumulative($('chartCum'), b.cumulative);
+    Charts.savedArea($('chartSaved'), b.cumulative);
+  }
+
   function init() {
+    Icons.hydrate();
+    paintLegend();
     Race.init();
+
+    $('themeToggle').addEventListener('click', function () {
+      applyTheme(isLight() ? 'dark' : 'light');
+    });
 
     document.querySelectorAll('.tab').forEach(function (t) {
       t.addEventListener('click', function () { switchView(t.dataset.view); });
@@ -525,6 +586,7 @@
         $(st.dataset.sub).classList.add('active');
         setTimeout(function () {
           Object.keys(state.maps).forEach(function (k) { state.maps[k].invalidateSize(); });
+          if (st.dataset.sub === 'sProof') redrawCharts();
         }, 60);
       });
     });
@@ -564,6 +626,12 @@
     fetch('../data/demand_forecast.json', { cache: 'no-store' }).then(function (r) { return r.json(); })
       .then(function (f) { global._forecast = f; if (state.current) renderHood(state.current); })
       .catch(function () {});
+
+    var resizeTimer;
+    global.addEventListener('resize', function () {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(redrawCharts, 180);
+    });
 
     loadCity('seattle');
   }

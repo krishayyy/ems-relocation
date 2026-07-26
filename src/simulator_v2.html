@@ -5,11 +5,20 @@
 <title>EMS Predictive Relocation — static vs. dynamic, on real 911 data</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="description" content="Compliance-table (MEXCLP) ambulance relocation simulated on real 911 call data with real road routing. Race static vs dynamic dispatch, switch cities, or drop in your own CAD export." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f5a524' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 10H6'/%3E%3Cpath d='M8 8v4'/%3E%3Cpath d='M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2'/%3E%3Cpath d='M19 18h2a1 1 0 0 0 1-1v-3.28a1 1 0 0 0-.684-.948l-1.923-.641a1 1 0 0 1-.578-.502l-1.539-3.076A1 1 0 0 0 16.382 8H14'/%3E%3Ccircle cx='7' cy='18' r='2'/%3E%3Ccircle cx='17' cy='18' r='2'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="styles.css" />
+<script>
+  // Applied before first paint so the chosen theme never flashes the other one.
+  (function () {
+    var t = localStorage.getItem('ems-theme');
+    if (!t) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
 </head>
 <body>
 <div id="app">
@@ -17,7 +26,7 @@
   <!-- ================= TOP BAR ================= -->
   <div id="topbar">
     <div class="brand">
-      <div class="mark">🚑</div>
+      <div class="mark"><i data-icon="ambulance" data-size="17"></i></div>
       <div>
         <h1>Predictive EMS Relocation</h1>
         <div class="sub" id="cityName">Loading…</div>
@@ -30,10 +39,16 @@
       <div class="citychip ghost" id="chipUpload">+ Your city</div>
     </div>
 
-    <div class="tabs">
-      <div class="tab active" data-view="vOverview">Overview</div>
-      <div class="tab" data-view="vHood">Under the hood</div>
-      <div class="tab" data-view="vUpload">Bring your CAD data</div>
+    <div class="topbar-right">
+      <div class="tabs">
+        <div class="tab active" data-view="vOverview"><i data-icon="map" data-size="13"></i>Overview</div>
+        <div class="tab" data-view="vHood"><i data-icon="layers" data-size="13"></i>Under the hood</div>
+        <div class="tab" data-view="vUpload"><i data-icon="upload" data-size="13"></i>Bring your CAD data</div>
+      </div>
+      <button class="icon-btn" id="themeToggle" title="Toggle light / dark" aria-label="Toggle light or dark theme">
+        <span class="ico-sun"><i data-icon="sun" data-size="15"></i></span>
+        <span class="ico-moon"><i data-icon="moon" data-size="15"></i></span>
+      </button>
     </div>
   </div>
 
@@ -41,7 +56,8 @@
 
     <!-- ================= OVERVIEW ================= -->
     <div class="view active" id="vOverview">
-      <div class="sidebar left" style="width:372px">
+      <div class="sidebar left split" style="width:372px">
+        <div class="sb-scroll">
         <div class="hero" style="padding:0">
           <div class="hero-headline">
             <div class="hero-big num"><span id="heroPct">0</span><span class="unit">% faster</span></div>
@@ -50,7 +66,7 @@
         </div>
 
         <div class="card">
-          <div class="label"><span class="icon-chip blue">🚑</span>Average response, same fleet &amp; same calls</div>
+          <div class="label"><i data-icon="ambulance" data-size="13"></i>Average response, same fleet &amp; same calls</div>
           <div class="vs" style="margin-top:9px">
             <div class="vs-row">
               <div class="vs-name s">Static</div>
@@ -65,50 +81,55 @@
           </div>
         </div>
 
-        <div class="card" style="background:linear-gradient(150deg,rgba(46,230,160,.1),rgba(46,230,160,.02));border-color:rgba(46,230,160,.26)">
-          <div class="label"><span class="icon-chip mint">⏱</span>Ambulance-minutes saved</div>
-          <div class="value num" id="kMinutes" style="color:var(--dynamic);font-size:29px">—</div>
+        <div class="card accent">
+          <div class="label"><i data-icon="timer" data-size="13"></i>Ambulance-minutes saved</div>
+          <div class="value num" id="kMinutes" style="color:var(--dynamic);font-size:27px">—</div>
           <div class="note" id="kHours" style="margin-top:3px"></div>
         </div>
 
         <div class="row">
-          <div class="card tight"><div class="label"><span class="icon-chip blue">🎯</span>Within 8-min standard</div><div class="value num" id="kWithin">—</div></div>
-          <div class="card tight"><div class="label"><span class="icon-chip violet">📈</span>p90 response</div><div class="value num" id="kP90">—</div></div>
+          <div class="card tight"><div class="label"><i data-icon="target" data-size="13"></i>Within 8-min standard</div><div class="value num" id="kWithin">—</div></div>
+          <div class="card tight"><div class="label"><i data-icon="trending" data-size="13"></i>p90 response</div><div class="value num" id="kP90">—</div></div>
         </div>
         <div class="row">
-          <div class="card tight"><div class="label"><span class="icon-chip violet">📊</span>Median response</div><div class="value num" id="kMedian">—</div></div>
-          <div class="card tight"><div class="label"><span class="icon-chip amber">🚒</span>Fleet modelled</div><div class="value num" id="kFleet" style="font-size:14px;margin-top:6px">—</div></div>
+          <div class="card tight"><div class="label"><i data-icon="chart" data-size="13"></i>Median response</div><div class="value num" id="kMedian">—</div></div>
+          <div class="card tight"><div class="label"><i data-icon="truck" data-size="13"></i>Fleet modelled</div><div class="value num" id="kFleet" style="font-size:14px;margin-top:6px">—</div></div>
+        </div>
+
+        <div class="card tight provenance">
+          <div class="prov-row">
+            <span class="label"><i data-icon="check" data-size="13"></i>Significance</span>
+            <span class="value num" id="kSig">—</span>
+          </div>
+          <div class="prov-row">
+            <span class="label"><i data-icon="calendar" data-size="13"></i>Data window</span>
+            <span class="value small num" id="kWindow">—</span>
+          </div>
+          <div class="note" id="kSigNote"></div>
+          <div class="note" id="srcLine"></div>
         </div>
 
         <div class="card tight">
-          <div class="label"><span class="icon-chip mint">✓</span>Statistical significance</div>
-          <div class="value num" id="kSig" style="font-size:16px;color:var(--dynamic)">—</div>
-          <div class="note" id="kSigNote" style="margin-top:3px"></div>
-        </div>
-
-        <div class="card tight">
-          <div class="label"><span class="icon-chip amber">🗓</span>Data window</div>
-          <div class="value small num" id="kWindow" style="font-size:12px">—</div>
-          <div class="note" id="srcLine" style="margin-top:5px"></div>
-        </div>
-
-        <div class="card tight">
-          <div class="label"><span class="icon-chip amber">🕐</span>Where to stage <em id="hourLabel">right now</em></div>
+          <div class="label"><i data-icon="clock" data-size="13"></i>Where to stage <em id="hourLabel">right now</em></div>
           <input type="range" id="hourSlider" min="0" max="23" value="12" style="margin-top:8px" />
           <div class="note" id="hourNote" style="margin-top:4px">Drag to see how the recommended posts shift through the day — each hour has its own real busy-fraction and demand pattern, not one fixed all-day table.</div>
         </div>
 
-        <div class="label" style="margin-top:4px" id="postListLabel">Where to stage the fleet (all-day average)</div>
-        <div id="postList"></div>
+        </div>
+
+        <div class="sb-pinned">
+          <div class="label postlist-head"><i data-icon="crosshair" data-size="13"></i><span id="postListLabel">Where to stage the fleet</span></div>
+          <div id="postList"></div>
+        </div>
       </div>
 
       <div class="mapwrap">
         <div id="mapOverview" style="position:absolute;inset:0"></div>
-        <div class="maplegend">
-          <div class="lg"><span class="swatch" style="background:#3a1c6e"></span>Low call demand</div>
-          <div class="lg"><span class="swatch" style="background:#7c5cff"></span>Medium</div>
-          <div class="lg"><span class="swatch" style="background:#ff5c9e"></span>High demand</div>
-          <div class="lg"><span class="swatch round" style="background:#7c5cff"></span>Ranked staging post</div>
+        <div class="maplegend" id="mapLegend">
+          <div class="lg"><span class="swatch" id="lgLow"></span>Low call demand</div>
+          <div class="lg"><span class="swatch" id="lgMid"></span>Medium</div>
+          <div class="lg"><span class="swatch" id="lgHigh"></span>High demand</div>
+          <div class="lg"><span class="swatch round" style="background:var(--primary)"></span>Ranked staging post</div>
         </div>
         <div class="detail-card" id="postDetail" style="display:none"></div>
       </div>
@@ -126,33 +147,38 @@
         <!-- demand -->
         <div class="subview active" id="sDemand">
           <div class="mapwrap"><div id="mapDemand" style="position:absolute;inset:0"></div></div>
-          <div class="sidebar">
+          <div class="sidebar split">
+            <div class="sb-scroll">
+            <div class="row">
+              <div class="card tight"><div class="label"><i data-icon="sliders" data-size="13"></i>Busy fraction q</div><div class="value num" id="statQ">—</div></div>
+              <div class="card tight"><div class="label"><i data-icon="target" data-size="13"></i>Coverage standard</div><div class="value num" id="statStandard">—</div></div>
+            </div>
             <div class="card">
-              <div class="label"><span class="icon-chip violet">🧠</span>The model</div>
+              <div class="label"><i data-icon="brain" data-size="13"></i>The model</div>
               <div class="value small">MEXCLP (Maximum Expected Coverage, Daskin 1983) — the published method real EMS
                 System Status Management runs on. It ranks candidate posts by expected coverage while accounting for the
                 probability that a covering unit is already busy. The output is a <b>compliance table</b>: idle units
                 continuously re-fill it from the top.</div>
             </div>
-            <div class="row">
-              <div class="card tight"><div class="label"><span class="icon-chip blue">⚙️</span>Busy fraction q</div><div class="value num" id="statQ">—</div></div>
-              <div class="card tight"><div class="label"><span class="icon-chip amber">🎯</span>Coverage standard</div><div class="value num" id="statStandard">—</div></div>
-            </div>
             <div class="card tight" id="forecastCard">
-              <div class="label"><span class="icon-chip violet">🔮</span>Demand forecast (ML, held-out validated)</div>
+              <div class="label"><i data-icon="activity" data-size="13"></i>Demand forecast (ML, held-out validated)</div>
               <div class="value small" id="forecastSummary">—</div>
               <div class="value" id="forecastNext" style="font-size:13px;margin-top:6px"></div>
-            </div>
-            <div class="card" style="max-height:290px;overflow-y:auto">
-              <div class="label" style="margin-bottom:6px">Zones by real call volume + compliance rank</div>
-              <table id="zoneTable">
-                <thead><tr><th></th><th>Zone</th><th>Volume</th><th>Calls</th><th>Rank</th></tr></thead>
-                <tbody></tbody>
-              </table>
             </div>
             <div class="note foot">
               <b style="color:var(--muted)">Routing:</b> <span id="routingSource"></span><br /><br />
               <span id="calibNote"></span>
+            </div>
+            </div>
+
+            <div class="sb-pinned zone-pane">
+              <div class="label zone-head"><i data-icon="chart" data-size="13"></i>Zones by call volume &amp; compliance rank</div>
+              <div class="zone-scroll">
+                <table id="zoneTable">
+                  <thead><tr><th></th><th>Zone</th><th>Volume</th><th>Calls</th><th>Rank</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
@@ -166,8 +192,8 @@
                 <option value="static">Static (fixed home base)</option>
                 <option value="dynamic">Dynamic (compliance-table restaging)</option>
               </select>
-              <button class="ctl primary" id="playBtn">▶ Play</button>
-              <button class="ctl" id="resetBtn">↻ Reset</button>
+              <button class="ctl primary" id="playBtn"><i data-icon="play" data-size="13"></i>Play</button>
+              <button class="ctl" id="resetBtn"><i data-icon="replay" data-size="13"></i>Reset</button>
               <select class="ctl" id="speedSelect">
                 <option value="400">1×</option>
                 <option value="150" selected>3×</option>
@@ -178,15 +204,15 @@
             <input type="range" id="timeline" min="0" max="100" value="0" />
             <div class="note" id="simDateLabel"></div>
             <div class="row">
-              <div class="card tight"><div class="label"><span class="icon-chip mint">📞</span>Calls handled</div><div class="value num" id="statCalls">0</div></div>
-              <div class="card tight"><div class="label"><span class="icon-chip violet">📊</span>Avg response so far</div><div class="value num" id="statAvgResp">—</div></div>
+              <div class="card tight"><div class="label"><i data-icon="phone" data-size="13"></i>Calls handled</div><div class="value num" id="statCalls">0</div></div>
+              <div class="card tight"><div class="label"><i data-icon="chart" data-size="13"></i>Avg response so far</div><div class="value num" id="statAvgResp">—</div></div>
             </div>
             <div class="row">
-              <div class="card tight"><div class="label"><span class="icon-chip coral">🚨</span>Units busy now</div><div class="value num" id="statBusy">—</div></div>
-              <div class="card tight"><div class="label"><span class="icon-chip amber">⏳</span>Delayed (no idle unit)</div><div class="value num" id="statDelayed">0</div></div>
+              <div class="card tight"><div class="label"><i data-icon="alert" data-size="13"></i>Units busy now</div><div class="value num" id="statBusy">—</div></div>
+              <div class="card tight"><div class="label"><i data-icon="timer" data-size="13"></i>Delayed (no idle unit)</div><div class="value num" id="statDelayed">0</div></div>
             </div>
             <div class="card tight">
-              <div class="label"><span class="icon-chip blue">📻</span>Last event</div>
+              <div class="label"><i data-icon="radio" data-size="13"></i>Last event</div>
               <div class="value small" id="lastEvent">—</div>
             </div>
             <div class="note foot">Real call arrivals and locations, replayed from the busiest real day in the window.
@@ -196,14 +222,14 @@
 
         <!-- proof -->
         <div class="subview" id="sProof" style="overflow-y:auto;padding:16px">
-          <div style="flex:1;display:flex;flex-direction:column;gap:12px;max-width:1060px">
-            <div class="grid2">
+          <div style="flex:1;display:flex;flex-direction:column;gap:12px">
+            <div class="proof-grid">
               <div class="chart-card">
                 <div class="chart-head"><span class="t">Response-time distribution</span><span class="s" id="chartHistSub"></span></div>
                 <div id="chartHist"></div>
                 <div class="chart-legend">
-                  <span><span class="swatch" style="background:#ff6b57"></span>Static</span>
-                  <span><span class="swatch" style="background:#2ee6a0"></span>Dynamic</span>
+                  <span><span class="swatch" style="background:var(--static)"></span>Static</span>
+                  <span><span class="swatch" style="background:var(--dynamic)"></span>Dynamic</span>
                   <span style="color:var(--dim)">The whole curve shifts left — not just the mean.</span>
                 </div>
               </div>
@@ -211,17 +237,17 @@
                 <div class="chart-head"><span class="t">Cumulative average response</span><span class="s">over the full call stream</span></div>
                 <div id="chartCum"></div>
                 <div class="chart-legend">
-                  <span><span class="swatch" style="background:#ff6b57"></span>Static</span>
-                  <span><span class="swatch" style="background:#2ee6a0"></span>Dynamic</span>
+                  <span><span class="swatch" style="background:var(--static)"></span>Static</span>
+                  <span><span class="swatch" style="background:var(--dynamic)"></span>Dynamic</span>
                   <span style="color:var(--dim)">The gap opens early and holds — not a lucky tail.</span>
                 </div>
               </div>
-            </div>
-
-            <div class="grid2">
               <div class="chart-card">
                 <div class="chart-head"><span class="t">Ambulance-minutes returned to the city</span></div>
                 <div id="chartSaved"></div>
+                <div class="chart-legend">
+                  <span><span class="swatch" style="background:var(--dynamic)"></span>Cumulative minutes returned</span>
+                </div>
               </div>
               <div class="card" id="realCheck">
                 <div class="label">Realism check against measured performance</div>
@@ -229,7 +255,7 @@
               </div>
             </div>
 
-            <div class="card">
+            <div class="card proof-wide">
               <div class="label">What this does <i>not</i> claim</div>
               <div class="value small">
                 This is a simulation on real data, not a fielded deployment. The fleet size and post locations are the
@@ -258,7 +284,7 @@
           </div>
 
           <div class="dropzone" id="dropzone">
-            <div class="big">📥</div>
+            <div class="big"><i data-icon="upload" data-size="30"></i></div>
             <h3>Drop a CAD export here, or click to choose a file</h3>
             <p>CSV with latitude / longitude / timestamp columns (column names are auto-detected).<br />
               Try <code>data/cincinnati/calls_60d.csv</code> from this repo to watch it rebuild Cincinnati from scratch.</p>
@@ -275,7 +301,7 @@
             <div class="pipeline" id="pipeline"></div>
           </div>
 
-          <div class="card" id="uploadResult" style="display:none;border-color:rgba(46,230,160,.3);background:linear-gradient(150deg,rgba(46,230,160,.09),rgba(46,230,160,.02))">
+          <div class="card accent" id="uploadResult" style="display:none">
             <div class="label">Result for <span id="urCity"></span></div>
             <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-top:6px">
               <div class="hero-big num" style="font-size:44px"><span id="urPct">—</span></div>
@@ -288,7 +314,7 @@
             <div class="note" style="margin-top:9px"><span id="urCalls"></span> real calls · <span id="urFleet"></span> ·
               browser run uses the OSRM-measured speed estimate rather than a live routing matrix; re-run
               <code>src/precompute_routing.py</code> for this city to replace the estimate with real road routing.</div>
-            <button class="ctl primary" id="urOpen" style="margin-top:11px">Open this city in the simulator →</button>
+            <button class="ctl primary" id="urOpen" style="margin-top:11px">Open this city in the simulator<i data-icon="arrowRight" data-size="13"></i></button>
           </div>
 
           <div class="note" id="calibLine"></div>
@@ -301,7 +327,7 @@
   <!-- ================= RACE DOCK ================= -->
   <div id="raceDock">
     <div class="race-head" id="raceHead">
-      <span class="title">Head-to-head</span>
+      <span class="title"><i data-icon="crosshair" data-size="12"></i>Head-to-head</span>
       <span class="verdict" id="raceVerdict">—</span>
       <span class="badge violet" id="raceCity">—</span>
       <span class="badge ok" id="raceDay">—</span>
@@ -311,7 +337,7 @@
           <option value="2" selected>2×</option>
           <option value="4">4×</option>
         </select>
-        <button class="ctl primary" id="raceBtn">▶ Race</button>
+        <button class="ctl primary" id="raceBtn"><i data-icon="play" data-size="13"></i>Race</button>
       </div>
     </div>
 
@@ -325,7 +351,7 @@
           </div>
           <div class="track" id="raceTrackS">
             <div class="track-fill s" id="raceFillS"></div>
-            <div class="runner" id="runnerS">🚑</div>
+            <div class="runner s" id="runnerS"><i data-icon="ambulance" data-size="13"></i></div>
           </div>
         </div>
         <div class="lane">
@@ -336,7 +362,7 @@
           </div>
           <div class="track" id="raceTrackD">
             <div class="track-fill d" id="raceFillD"></div>
-            <div class="runner" id="runnerD">🚑</div>
+            <div class="runner d" id="runnerD"><i data-icon="ambulance" data-size="13"></i></div>
           </div>
         </div>
         <div class="note" style="text-align:center">Both lanes clear the <b>same real calls in the same order</b> off one
@@ -364,6 +390,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="icons.js?v=2"></script>
 <script src="cad_engine.js?v=2"></script>
 <script src="charts.js?v=2"></script>
 <script src="race.js?v=2"></script>
