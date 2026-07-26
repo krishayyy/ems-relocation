@@ -198,20 +198,33 @@
     var slider = $('hourSlider');
     if (b.hourly_posts) {
       slider.style.display = '';
-      slider.oninput = function () {
-        var h = slider.value;
-        $('hourLabel').textContent = fmtHour(h);
+
+      function setStageHour(h, followingReplay) {
+        slider.value = h;
+        $('hourLabel').textContent = fmtHour(h) + (followingReplay ? ' · following replay' : '');
         var q = b.busy_fraction_by_hour ? b.busy_fraction_by_hour[+h] : null;
         $('hourNote').textContent = 'Recommended posts for ' + fmtHour(h) +
           (q != null ? ' — busy fraction at this hour: ' + q : '') +
-          '. Each hour uses its own real call volume and demand pattern, not one fixed all-day table.';
+          '. Each hour uses its own real call volume and demand pattern, not one fixed all-day table.' +
+          (followingReplay ? ' Tracking the head-to-head replay clock below — drag to override.' : '');
         renderPosts(b.hourly_posts[h] || b.home_bases, fmtHour(h));
-      };
+      }
+
+      // Manually dragging always wins for that instant; if the race is
+      // mid-play, the very next tick's autoFollowHour() call below will pull
+      // it back to the replay's current hour, since a live replay is the
+      // whole point of the auto-follow, not a one-off override.
+      slider.oninput = function () { setStageHour(slider.value, false); };
       var startHour = new Date().getHours();
-      slider.value = startHour;
-      slider.oninput();
+      setStageHour(startHour, false);
+
+      // Exposed so race.js can keep this panel in lockstep with the
+      // head-to-head clock instead of it going stale at whatever hour the
+      // page happened to load at while the replay plays through the day.
+      state.autoFollowHour = setStageHour;
     } else {
       slider.parentElement.style.display = 'none';
+      state.autoFollowHour = null;
       renderPosts(b.home_bases);
     }
   }
@@ -636,6 +649,14 @@
     loadCity('seattle');
   }
 
-  global.App = { init: init, switchView: switchView };
+  global.App = {
+    init: init,
+    switchView: switchView,
+    // Lets race.js keep "Where to stage" in lockstep with the head-to-head
+    // replay clock. No-op if the current city has no hourly staging table.
+    setStageHour: function (h, followingReplay) {
+      if (state.autoFollowHour) state.autoFollowHour(h, followingReplay);
+    }
+  };
   document.addEventListener('DOMContentLoaded', init);
 })(window);

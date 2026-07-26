@@ -13,7 +13,8 @@
 
   var state = {
     bundle: null, cumS: null, cumD: null, n: 0, total: 0,
-    clock: 0, raf: null, playing: false, speed: 1, wins: { d: 0, s: 0, t: 0 }
+    clock: 0, raf: null, playing: false, speed: 1, wins: { d: 0, s: 0, t: 0 },
+    lastStageHour: null
   };
 
   function $(id) { return document.getElementById(id); }
@@ -23,6 +24,7 @@
   function load(bundle) {
     stop();
     state.bundle = bundle;
+    state.lastStageHour = null;
     var se = bundle.race.static_events, de = bundle.race.dynamic_events;
     var n = Math.min(se.length, de.length);
     state.n = n;
@@ -117,6 +119,25 @@
     $('winLabel').innerHTML = '<b style="color:var(--dynamic)">' + fmt(wd) + '</b> calls reached sooner &middot; ' +
       '<b style="color:var(--static)">' + fmt(wst) + '</b> slower &middot; ' + fmt(wt) + ' tied' +
       (paired < n ? ' <span style="color:var(--muted);">(of ' + fmt(paired) + ' so far)</span>' : '');
+
+    return paired;
+  }
+
+  // Keeps the "Where to stage" panel showing the recommended posts for
+  // whatever hour the replay has actually reached, instead of it staying
+  // stuck at the hour the page happened to load at while the race plays
+  // through the rest of the day. static/dynamic events share the same call
+  // order and timestamps (same real day, same calls), so either lane's
+  // pointer gives the same simulated clock time.
+  function followStageHour(paired) {
+    if (!global.App || !global.App.setStageHour || !state.bundle) return;
+    var events = state.bundle.race.static_events;
+    if (!events || !events.length) return;
+    var idx = Math.max(0, Math.min(events.length - 1, paired - 1));
+    var hour = new Date(events[idx].t).getHours();
+    if (hour === state.lastStageHour) return;
+    state.lastStageHour = hour;
+    global.App.setStageHour(hour, true);
   }
 
   // Timer-driven rather than requestAnimationFrame: rAF is suspended whenever
@@ -130,8 +151,8 @@
     state.last = now;
     // A full race takes ~22 s of wall clock at 1x, whatever the city's scale.
     state.clock += (state.total / 22000) * dt * state.speed;
-    if (state.clock >= state.total) { state.clock = state.total; render(); finish(); return; }
-    render();
+    if (state.clock >= state.total) { state.clock = state.total; followStageHour(render()); finish(); return; }
+    followStageHour(render());
   }
 
   function finish() {
